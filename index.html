@@ -1,0 +1,99 @@
+<!-- index.html -->
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบสแกนลงเวลาพนักงาน - MFG-5</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div>
+                <h1>📲 ระบบสแกนลงเวลาพนักงาน (MFG-5)</h1>
+                <p class="role-badge">ระบบบันทึกเวลาเข้า-ออก และคำนวณ OT อัตโนมัติ</p>
+            </div>
+            <div class="clock-box">
+                <span id="date">วันที่</span><br>
+                <span id="time" class="time-text">00:00:00</span>
+            </div>
+        </div>
+
+        <div class="shift-container">
+            <button type="button" class="shift-btn active" onclick="setShift('กะเช้า', this)">☀️ กะเช้า (08:00)</button>
+            <button type="button" class="shift-btn" onclick="setShift('กะดึก', this)">🌙 กะดึก (20:00)</button>
+        </div>
+
+        <div class="card">
+            <h3>ยิงบาร์โค้ด / พิมพ์รหัสพนักงาน</h3>
+            <input type="text" id="employee" class="scan-input" placeholder="ยิง Barcode หรือพิมพ์รหัสแล้วกด Enter" onkeydown="handleScan(event)" autofocus autocomplete="off">
+            <div id="message" class="status-msg">พร้อมสแกน [กะเช้า]</div>
+        </div>
+
+        <div class="dashboard-grid">
+            <div class="dash-card">
+                <div class="dash-title">สแกนวันนี้</div>
+                <div id="total" class="dash-value">0</div>
+            </div>
+            <div class="dash-card card-success">
+                <div class="dash-title">เข้างานแล้ว</div>
+                <div id="checkin" class="dash-value">0</div>
+            </div>
+            <div class="dash-card card-warning">
+                <div class="dash-title">ออกงานแล้ว</div>
+                <div id="checkout" class="dash-value">0</div>
+            </div>
+            <div class="dash-card card-info">
+                <div class="dash-title">ทำ OT</div>
+                <div id="ot" class="dash-value">0</div>
+            </div>
+        </div>
+
+        <div class="toolbar">
+            <input type="text" id="search" placeholder="🔍 ค้นหารหัสพนักงาน..." onkeyup="renderTable()" style="flex:1; padding:10px 15px; border-radius:8px; border:1px solid #cbd5e1;">
+            <button onclick="exportExcel()" class="btn-primary">📥 Excel</button>
+            <a href="summary.html" class="btn-purple">📊 รายงาน</a>
+            <a href="restroom.html" style="background: #009688; color: white;" class="btn-secondary">🚽 ออกนอกพื้นที่</a>
+            <a href="display.html" target="_blank" class="btn-secondary">📺 จอแสดงผล</a>
+            <a href="menu.html" class="btn-secondary">⚙️ เมนูหลัก</a>
+            <button onclick="clearData()" class="btn-danger">🗑️ ล้างข้อมูล</button>
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>รหัสพนักงาน</th>
+                    <th>🟢 วันที่ / เวลาเข้า</th>
+                    <th>🔴 วันที่ / เวลาออก</th>
+                    <th>กะ</th>
+                    <th>สถานะ</th>
+                    <th>OT</th>
+                    <th>จัดการ</th>
+                </tr>
+            </thead>
+            <tbody id="list"></tbody>
+        </table>
+    </div>
+
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <h2 style="margin-top:0; color:#0284c7;">✏️ แก้ไขข้อมูลการลงเวลา</h2>
+            <input type="hidden" id="editId">
+            <label>รหัสพนักงาน:</label><input type="text" id="editEmpCode">
+            <label>เวลาเข้า:</label><input type="text" id="editCheckIn">
+            <label>เวลาออก:</label><input type="text" id="editCheckOut">
+            <label>กะ:</label>
+            <select id="editShift"><option value="กะเช้า">กะเช้า</option><option value="กะดึก">กะดึก</option></select>
+            <label>สถานะ:</label><input type="text" id="editStatus">
+            <label>OT:</label>
+            <select id="editOt"><option value="ทำ">ทำ</option><option value="ไม่ทำ">ไม่ทำ</option></select>
+            <div style="margin-top: 20px; display: flex; gap: 10px; justify-content: flex-end;">
+                <button type="button" onclick="saveEdit()" class="btn-primary">บันทึก</button>
+                <button type="button" onclick="closeEditModal()" class="btn-secondary">ยกเลิก</button>
+            </div>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>

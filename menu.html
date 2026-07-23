@@ -1,0 +1,95 @@
+<!-- menu.html -->
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบบริหารจัดการเวลาพนักงาน - MFG-5</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="supervisor-header">
+            <div>
+                <h1>🏭 ระบบบริหารจัดการเวลาพนักงาน (MFG-5)</h1>
+                <p class="role-badge">👤 สิทธิ์ผู้ใช้งาน: หัวหน้างาน (Supervisor)</p>
+            </div>
+            <div class="clock-mini">
+                <span id="date">วันที่</span><br>
+                <span id="time" style="font-size: 20px;">00:00:00</span>
+            </div>
+        </div>
+
+        <div class="dashboard">
+            <div class="card">
+                <h3>พนักงานทั้งหมด</h3>
+                <span id="sumTotal">0</span>
+            </div>
+            <div class="card card-success">
+                <h3>เข้างานวันนี้</h3>
+                <span id="sumIn">0</span>
+            </div>
+            <div class="card card-warning">
+                <h3>มาสาย</h3>
+                <span id="sumLate">0</span>
+            </div>
+            <div class="card card-info">
+                <h3>ทำ OT</h3>
+                <span id="sumOT">0</span>
+            </div>
+        </div>
+
+        <h2 style="color: #1e293b; margin-top: 30px;">📌 เมนูหลักการทำงาน</h2>
+        <div class="menu-grid">
+            <a href="index.html" class="menu-card">
+                <div class="menu-icon">📲</div>
+                <div class="menu-detail">
+                    <h3>หน้าสแกนลงเวลา</h3>
+                    <p>เปิดหน้าจอสำหรับยิง บาร์โค้ด / QR Code เข้า-ออกงาน</p>
+                </div>
+            </a>
+
+            <a href="summary.html" class="menu-card">
+                <div class="menu-icon">📊</div>
+                <div class="menu-detail">
+                    <h3>รายงานสรุปเวลา</h3>
+                    <p>ตรวจสอบประวัติลงเวลา รายชื่อคนมาสาย และรายการ OT</p>
+                </div>
+            </a>
+
+            <a href="restroom.html" class="menu-card">
+                <div class="menu-icon">🚽</div>
+                <div class="menu-detail">
+                    <h3>ฟอร์มออกนอกพื้นที่</h3>
+                    <p>บันทึกการขออนุญาตเข้าห้องน้ำ, ทานข้าว, พักเบรก, ประชุม</p>
+                </div>
+            </a>
+
+            <a href="display.html" target="_blank" class="menu-card">
+                <div class="menu-icon">📺</div>
+                <div class="menu-detail">
+                    <h3>หน้าจอแสดงผล (Display)</h3>
+                    <p>เปิดหน้าจอสำหรับแสดงผลสถานะการสแกนแบบ Real-time</p>
+                </div>
+            </a>
+
+            <div class="menu-card" onclick="exportExcelMenu()">
+                <div class="menu-icon">📥</div>
+                <div class="menu-detail">
+                    <h3>ส่งออกข้อมูล (Excel)</h3>
+                    <p>ดาวน์โหลดไฟล์ CSV ประจำวันไปใช้งานต่อ</p>
+                </div>
+            </div>
+
+            <div class="menu-card danger-card" onclick="confirmResetData()">
+                <div class="menu-icon">⚠️</div>
+                <div class="menu-detail">
+                    <h3>ล้างข้อมูลประจำวัน</h3>
+                    <p>สำหรับหัวหน้างานใช้เริ่มต้นบันทึกวันใหม่ (Reset Data)</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>

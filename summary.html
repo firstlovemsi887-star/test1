@@ -1,0 +1,58 @@
+<!-- summary.html -->
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>สรุปเวลาพนักงาน - MFG-5</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>📊 รายงานสรุปเวลาพนักงานโรงงาน</h1>
+        <div class="dashboard">
+            <div class="card">
+                <h3>พนักงานทั้งหมด</h3>
+                <span id="sumTotal">0</span>
+            </div>
+            <div class="card card-success">
+                <h3>เข้างาน</h3>
+                <span id="sumIn">0</span>
+            </div>
+            <div class="card card-warning">
+                <h3>มาสาย</h3>
+                <span id="sumLate">0</span>
+            </div>
+            <div class="card card-info">
+                <h3>ทำ OT</h3>
+                <span id="sumOT">0</span>
+            </div>
+        </div>
+
+        <div class="toolbar">
+            <input id="search" type="text" placeholder="🔍 ค้นหารหัสพนักงาน..." style="flex:1; padding:10px 15px; border-radius:8px; border:1px solid #cbd5e1;">
+            <button type="button" onclick="exportSummary()" class="btn-primary">📥 Excel</button>
+            <a href="index.html" class="btn-secondary">📲 หน้าสแกน</a>
+            <a href="restroom.html" style="background: #009688; color: white;" class="btn-secondary">🚽 ออกนอกพื้นที่</a>
+            <a href="display.html" target="_blank" class="btn-secondary">📺 จอแสดงผล</a>
+            <a href="menu.html" class="btn-purple">⚙️ เมนูหลัก</a>
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>รหัสพนักงาน</th>
+                    <th>🟢 วันที่ / เวลาเข้า</th>
+                    <th>🔴 วันที่ / เวลาออก</th>
+                    <th>กะ</th>
+                    <th>สถานะ</th>
+                    <th>OT</th>
+                </tr>
+            </thead>
+            <tbody id="summaryList"></tbody>
+        </table>
+    </div>
+    <script src="script.js"></script>
+    <script src="summary.js"></script>
+</body>
+</html>
