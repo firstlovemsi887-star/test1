@@ -8,9 +8,9 @@
 </head>
 <body>
     <div class="container">
-        <div style="display: flex; justify-content: space-between; align-items: center; background: #f8fafc; padding: 12px 20px; border-radius: 10px; border: 1px solid #e2e8f0; margin-bottom: 20px; font-size: 16px; font-weight: bold; color: #334155;">
-            <div>📅 <span id="date">กำลังโหลดวันที่...</span></div>
-            <div>⏰ <span id="time">กำลังโหลดเวลา...</span></div>
+        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; background: #0f172a; padding: 18px 20px; border-radius: 12px; margin-bottom: 20px; color: #ffffff;">
+            <div style="font-size: 15px; color: #94a3b8; font-weight: 600;">📅 <span id="date">กำลังโหลดวันที่...</span></div>
+            <div style="font-size: 44px; font-weight: 700; letter-spacing: 2px; color: #38bdf8;">⏰ <span id="time">กำลังโหลดเวลา...</span></div>
         </div>
 
         <div class="shift-container">
@@ -34,6 +34,8 @@
         <div class="action-bar">
             <input type="text" id="search" placeholder="ค้นหารหัสพนักงาน..." onkeyup="renderTable()">
             <button onclick="exportExcel()" class="btn-excel">📊 Excel</button>
+            <input type="file" id="importFile" accept=".csv,.xlsx,.xls" style="display:none" onchange="importExcel(event)">
+            <button onclick="document.getElementById('importFile').click()" class="btn-import">📥 นำเข้าข้อมูล</button>
             <button onclick="window.location.href='summary.html'" class="btn-summary">📋 รายงาน</button>
             <button onclick="window.location.href='restroom.html'" class="btn-restroom">🚻 ออกนอกพื้นที่</button>
             <button onclick="window.location.href='display.html'" class="btn-display">📺 จอแสดงผล</button>
@@ -68,7 +70,14 @@
             <label>เวลาเข้า:</label><input type="text" id="editCheckIn">
             <label>เวลาออก:</label><input type="text" id="editCheckOut">
             <label>กะ:</label><input type="text" id="editShift">
-            <label>สถานะ:</label><input type="text" id="editStatus">
+            
+            <!-- ปรับแก้ตรงนี้ให้เป็น Dropdown เลือก ปกติ / สาย -->
+            <label>สถานะ:</label>
+            <select id="editStatus">
+                <option value="ปกติ">ปกติ</option>
+                <option value="สาย">สาย</option>
+            </select>
+
             <label>OT:</label>
             <select id="editOt">
                 <option value="ทำ">ทำ</option>
@@ -81,6 +90,7 @@
         </div>
     </div>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="script.js"></script>
 </body>
 </html>
