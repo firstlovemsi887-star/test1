@@ -211,6 +211,7 @@ function renderTable() {
         listTable.appendChild(tr);
     });
     updateDashboardApp();
+    showSummary();
 }
 
 function updateDashboardApp() {
@@ -220,6 +221,26 @@ function updateDashboardApp() {
     if(document.getElementById('checkin')) document.getElementById('checkin').innerText = todayRecs.filter(i => i.checkIn !== '-').length;
     if(document.getElementById('checkout')) document.getElementById('checkout').innerText = todayRecs.filter(i => i.checkOut !== '-').length;
     if(document.getElementById('ot')) document.getElementById('ot').innerText = todayRecs.filter(i => i.ot === 'ทำ').length;
+}
+
+function showSummary() {
+    const summaryList = document.getElementById('summaryList');
+    if(summaryList) {
+        summaryList.innerHTML = '';
+        attendanceData.forEach(item => {
+            let tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><b>${item.empCode}</b></td>
+                <td>${item.checkIn}</td>
+                <td>${item.checkOut}</td>
+                <td>${item.shift}</td>
+                <td>${item.status}</td>
+                <td>${item.ot}</td>
+            `;
+            summaryList.appendChild(tr);
+        });
+    }
+    loadDashboard();
 }
 
 function openEditModal(id) {
@@ -257,6 +278,7 @@ function saveEdit() {
 function saveAndRenderApp() {
     localStorage.setItem('mfg5_attendance', JSON.stringify(attendanceData));
     renderTable();
+    showSummary();
 }
 
 function deleteRecord(id) {
@@ -409,7 +431,14 @@ function renderDisplayTable() {
     if(!tbody) return;
     const searchVal = document.getElementById('empSearchInput')?.value.toLowerCase() || '';
     tbody.innerHTML = '';
-    attendanceData.filter(i => i.empCode.toLowerCase().includes(searchVal)).forEach(item => {
+    
+    let filtered = attendanceData.filter(i => i.empCode.toLowerCase().includes(searchVal));
+    if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: #94a3b8; padding: 30px;">ไม่พบข้อมูลการลงเวลา</td></tr>`;
+        return;
+    }
+
+    filtered.forEach(item => {
         let tr = document.createElement('tr');
         tr.innerHTML = `
             <td><b>${item.empCode}</b></td>
@@ -428,6 +457,7 @@ window.addEventListener('storage', (e) => {
         attendanceData = JSON.parse(e.newValue) || [];
         loadDashboard();
         renderTable();
+        showSummary();
         renderDisplayTable();
     }
     if (e.key === 'factoryRestroom') {
@@ -440,4 +470,8 @@ document.addEventListener("DOMContentLoaded", () => {
     fetchCloudData();
     document.getElementById('employee')?.focus();
     document.getElementById('employeeRestroom')?.focus();
+    renderTable();
+    showSummary();
+    renderRestroom();
+    renderDisplayTable();
 });

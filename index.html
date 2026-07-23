@@ -8,46 +8,29 @@
 </head>
 <body>
     <div class="container">
-        <!-- ส่วนแสดง วันที่ และ เวลา แบบ Real-time -->
         <div style="display: flex; justify-content: space-between; align-items: center; background: #f8fafc; padding: 12px 20px; border-radius: 10px; border: 1px solid #e2e8f0; margin-bottom: 20px; font-size: 16px; font-weight: bold; color: #334155;">
             <div>📅 <span id="date">กำลังโหลดวันที่...</span></div>
             <div>⏰ <span id="time">กำลังโหลดเวลา...</span></div>
         </div>
 
-        <!-- กล่องเลือกกะ -->
         <div class="shift-container">
             <button class="shift-btn active" onclick="setShift('กะเช้า', this)">☀️ กะเช้า (08:00)</button>
             <button class="shift-btn" onclick="setShift('กะดึก', this)">🌙 กะดึก (20:00)</button>
         </div>
 
-        <!-- กล่องสแกน -->
         <div class="scan-box">
             <h2>ยิงบาร์โค้ด / พิมพ์รหัสพนักงาน</h2>
             <input type="text" id="employee" placeholder="ยิง Barcode หรือพิมพ์รหัสแล้วกด Enter" autocomplete="off" autofocus onkeydown="handleScan(event)">
             <div id="message" class="message-box">พร้อมสแกน [กะเช้า]</div>
         </div>
 
-        <!-- Dashboard Cards -->
         <div class="dashboard-grid">
-            <div class="card">
-                <p>สแกนวันนี้</p>
-                <h3 id="total">0</h3>
-            </div>
-            <div class="card">
-                <p>เข้างานแล้ว</p>
-                <h3 id="checkin">0</h3>
-            </div>
-            <div class="card">
-                <p>ออกงานแล้ว</p>
-                <h3 id="checkout">0</h3>
-            </div>
-            <div class="card">
-                <p>ทำ OT</p>
-                <h3 id="ot">0</h3>
-            </div>
+            <div class="card"><p>สแกนวันนี้</p><h3 id="total">0</h3></div>
+            <div class="card"><p>เข้างานแล้ว</p><h3 id="checkin">0</h3></div>
+            <div class="card"><p>ออกงานแล้ว</p><h3 id="checkout">0</h3></div>
+            <div class="card"><p>ทำ OT</p><h3 id="ot">0</h3></div>
         </div>
 
-        <!-- Action Controls -->
         <div class="action-bar">
             <input type="text" id="search" placeholder="ค้นหารหัสพนักงาน..." onkeyup="renderTable()">
             <button onclick="exportExcel()" class="btn-excel">📊 Excel</button>
@@ -57,7 +40,6 @@
             <button onclick="clearData()" class="btn-danger">🗑️ ล้างข้อมูล</button>
         </div>
 
-        <!-- Table -->
         <div class="table-container">
             <table>
                 <thead>
@@ -78,21 +60,15 @@
         </div>
     </div>
 
-    <!-- Modal สำหรับแก้ไขข้อมูล -->
     <div id="editModal" class="modal" style="display:none;">
         <div class="modal-content">
             <h3>แก้ไขข้อมูลการลงเวลา</h3>
             <input type="hidden" id="editId">
-            <label>รหัสพนักงาน:</label>
-            <input type="text" id="editEmpCode">
-            <label>เวลาเข้า:</label>
-            <input type="text" id="editCheckIn">
-            <label>เวลาออก:</label>
-            <input type="text" id="editCheckOut">
-            <label>กะ:</label>
-            <input type="text" id="editShift">
-            <label>สถานะ:</label>
-            <input type="text" id="editStatus">
+            <label>รหัสพนักงาน:</label><input type="text" id="editEmpCode">
+            <label>เวลาเข้า:</label><input type="text" id="editCheckIn">
+            <label>เวลาออก:</label><input type="text" id="editCheckOut">
+            <label>กะ:</label><input type="text" id="editShift">
+            <label>สถานะ:</label><input type="text" id="editStatus">
             <label>OT:</label>
             <select id="editOt">
                 <option value="ทำ">ทำ</option>
