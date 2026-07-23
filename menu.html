@@ -1,92 +1,56 @@
-<!-- menu.html -->
 <!DOCTYPE html>
 <html lang="th">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ระบบบริหารจัดการเวลาพนักงาน - MFG-5</title>
+    <title>MFG-5 - เมนูหลักระบบจัดการ</title>
     <link rel="stylesheet" href="style.css">
+    <style>
+        .menu-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-top: 30px; }
+        .menu-card { background: white; padding: 25px; border-radius: 12px; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.02); cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; border: 1px solid var(--border-color); }
+        .menu-card:hover { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(0,0,0,0.05); }
+        .menu-card h3 { margin: 15px 0 10px; color: #0f172a; font-size: 20px; }
+        .menu-card p { color: #64748b; font-size: 14px; margin: 0; }
+        .menu-icon { font-size: 40px; }
+    </style>
 </head>
 <body>
     <div class="container">
-        <div class="supervisor-header">
-            <div>
-                <h1>🏭 ระบบบริหารจัดการเวลาพนักงาน (MFG-5)</h1>
-                <p class="role-badge">👤 สิทธิ์ผู้ใช้งาน: หัวหน้างาน (Supervisor)</p>
-            </div>
-            <div class="clock-mini">
-                <span id="date">วันที่</span><br>
-                <span id="time" style="font-size: 20px;">00:00:00</span>
-            </div>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--border-color); padding-bottom: 15px;">
+            <h2>⚙️ MFG-5 - เมนูหลักและตั้งค่าระบบ</h2>
+            <button onclick="location.href='index.html'" class="btn-secondary">⬅️ กลับหน้าหลัก</button>
         </div>
 
-        <div class="dashboard">
-            <div class="card">
-                <h3>พนักงานทั้งหมด</h3>
-                <span id="sumTotal">0</span>
-            </div>
-            <div class="card card-success">
-                <h3>เข้างานวันนี้</h3>
-                <span id="sumIn">0</span>
-            </div>
-            <div class="card card-warning">
-                <h3>มาสาย</h3>
-                <span id="sumLate">0</span>
-            </div>
-            <div class="card card-info">
-                <h3>ทำ OT</h3>
-                <span id="sumOT">0</span>
-            </div>
-        </div>
-
-        <h2 style="color: #1e293b; margin-top: 30px;">📌 เมนูหลักการทำงาน</h2>
         <div class="menu-grid">
-            <a href="index.html" class="menu-card">
-                <div class="menu-icon">📲</div>
-                <div class="menu-detail">
-                    <h3>หน้าสแกนลงเวลา</h3>
-                    <p>เปิดหน้าจอสำหรับยิง บาร์โค้ด / QR Code เข้า-ออกงาน</p>
-                </div>
-            </a>
-
-            <a href="summary.html" class="menu-card">
-                <div class="menu-icon">📊</div>
-                <div class="menu-detail">
-                    <h3>รายงานสรุปเวลา</h3>
-                    <p>ตรวจสอบประวัติลงเวลา รายชื่อคนมาสาย และรายการ OT</p>
-                </div>
-            </a>
-
-            <a href="restroom.html" class="menu-card">
-                <div class="menu-icon">🚽</div>
-                <div class="menu-detail">
-                    <h3>ฟอร์มออกนอกพื้นที่</h3>
-                    <p>บันทึกการขออนุญาตเข้าห้องน้ำ, ทานข้าว, พักเบรก, ประชุม</p>
-                </div>
-            </a>
-
-            <a href="display.html" target="_blank" class="menu-card">
-                <div class="menu-icon">📺</div>
-                <div class="menu-detail">
-                    <h3>หน้าจอแสดงผล (Display)</h3>
-                    <p>เปิดหน้าจอสำหรับแสดงผลสถานะการสแกนแบบ Real-time</p>
-                </div>
-            </a>
-
-            <div class="menu-card" onclick="exportExcelMenu()">
+            <div class="menu-card" onclick="location.href='index.html'">
                 <div class="menu-icon">📥</div>
-                <div class="menu-detail">
-                    <h3>ส่งออกข้อมูล (Excel)</h3>
-                    <p>ดาวน์โหลดไฟล์ CSV ประจำวันไปใช้งานต่อ</p>
-                </div>
+                <h3>หน้าสแกนลงเวลา</h3>
+                <p>ระบบบันทึกเวลาเข้า-ออกงาน และเช็คกะทำงาน</p>
             </div>
-
-            <div class="menu-card danger-card" onclick="confirmResetData()">
-                <div class="menu-icon">⚠️</div>
-                <div class="menu-detail">
-                    <h3>ล้างข้อมูลประจำวัน</h3>
-                    <p>สำหรับหัวหน้างานใช้เริ่มต้นบันทึกวันใหม่ (Reset Data)</p>
-                </div>
+            <div class="menu-card" onclick="location.href='summary.html'">
+                <div class="menu-icon">📄</div>
+                <h3>รายงานสรุปผล</h3>
+                <p>ดูภาพรวมพนักงานมาสาย ทำ OT และสรุปยอดประจำวัน</p>
+            </div>
+            <div class="menu-card" onclick="location.href='restroom.html'">
+                <div class="menu-icon">🚻</div>
+                <h3>ออกนอกพื้นที่</h3>
+                <p>บันทึกการเข้าห้องน้ำและพักเบรก พร้อมระบบจับเวลา</p>
+            </div>
+            <div class="menu-card" onclick="window.open('display.html', '_blank')">
+                <div class="menu-icon">📺</div>
+                <h3>จอแสดงผล (Real-time)</h3>
+                <p>เปิดหน้าจอสำหรับแสดงผลบนทีวีหรือมอนิเตอร์โรงงาน</p>
+            </div>
+            <div class="menu-card" onclick="exportExcelMenu()">
+                <div class="menu-icon">📊</div>
+                <h3>ส่งออกข้อมูลทั้งหมด</h3>
+                <p>ดาวน์โหลดไฟล์ CSV สำรองข้อมูลการลงเวลาทั้งหมด</p>
+            </div>
+            <div class="menu-card" onclick="confirmResetData()" style="border-color: #fecaca;">
+                <div class="menu-icon">🗑️</div>
+                <h3>ล้างข้อมูลระบบ</h3>
+                <p style="color: #b91c1c;">รีเซ็ตข้อมูลทั้งหมด</p>
             </div>
         </div>
     </div>

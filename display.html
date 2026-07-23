@@ -1,63 +1,66 @@
-<!-- display.html -->
 <!DOCTYPE html>
 <html lang="th">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>หน้าจอแสดงผลลงเวลาพนักงาน - MFG-5</title>
+    <title>MFG-5 - จอแสดงผลการลงเวลาเรียลไทม์</title>
     <link rel="stylesheet" href="style.css">
     <style>
-        .display-container { width: 95%; max-width: 1400px; margin: auto; padding: 20px; }
-        .latest-card { background: #ffffff; border-radius: 15px; padding: 25px; text-align: center; margin-bottom: 25px; border: 2px solid #e2e8f0; transition: all 0.3s; }
-        .latest-card.active-checkin { border-color: #16a34a; background: #f0fdf4; }
-        .latest-card.active-checkout { border-color: #ea580c; background: #fff7ed; }
-        .emp-code-large { font-size: 52px; font-weight: 800; margin: 10px 0; color: #0f172a; }
+        body { background: #0f172a; color: #f8fafc; }
+        .container { max-width: 1400px; background: #0f172a; border: none; box-shadow: none; }
+        .display-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #334155; padding-bottom: 15px; margin-bottom: 20px; }
+        .latest-card { background: #1e293b; border: 2px solid #475569; border-radius: 12px; padding: 25px; text-align: center; margin-bottom: 25px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); transition: all 0.3s ease; }
+        .latest-card h1 { font-size: 60px; margin: 10px 0; color: #38bdf8; }
+        .active-checkin { border-color: #22c55e; background: #064e3b; }
+        .active-checkout { border-color: #ef4444; background: #7f1d1d; }
+        .table-container table { width: 100%; border-collapse: collapse; background: #1e293b; border-radius: 8px; overflow: hidden; }
+        .table-container th, .table-container td { padding: 15px; text-align: center; border-bottom: 1px solid #334155; }
+        .table-container th { background: #334155; color: #e2e8f0; font-size: 18px; }
+        .table-container td { font-size: 16px; color: #cbd5e1; }
+        .search-box { width: 100%; padding: 12px; font-size: 16px; border-radius: 8px; border: 1px solid #475569; background: #1e293b; color: white; margin-bottom: 20px; outline: none; }
     </style>
 </head>
 <body>
-    <div class="display-container">
-        <div class="header">
-            <div>
-                <h1 style="margin: 0; font-size: 26px;">📺 จอแสดงผลลงเวลาพนักงาน (MFG-5)</h1>
-                <p style="margin: 5px 0 0; color: #64748b;">สแกนรหัสเพื่อตรวจสอบข้อมูลการเข้า-ออกงานของคุณ</p>
-            </div>
-            <div class="clock-box">
-                <span id="date">วันที่</span><br>
-                <span id="time" class="time-text">00:00:00</span>
-            </div>
+    <div class="container">
+        <div class="display-header">
+            <h2>📺 MFG-5 จอแสดงผลการลงเวลาพนักงาน (Real-time)</h2>
+            <div id="clock" style="font-size: 24px; font-weight: bold; color: #38bdf8;">00:00:00</div>
         </div>
 
         <div id="latestCard" class="latest-card">
-            <h3 id="scanActionTitle" style="color: #64748b; font-size: 20px; margin-top: 0;">📌 สถานะการสแกนล่าสุด</h3>
-            <div id="latestEmpCode" class="emp-code-large">--- กรุณาสแกนรหัสพนักงาน ---</div>
-            <div id="latestDetails" style="font-size: 20px; color: #475569;">รอรับข้อมูลจากระบบ...</div>
+            <h3 id="scanActionTitle" style="font-size: 24px; color: #cbd5e1;">รอการสแกน...</h3>
+            <h1 id="latestEmpCode">-----</h1>
+            <p id="latestDetails" style="font-size: 20px; color: #94a3b8;">กรุณาสแกนบัตรพนักงานที่เครื่องสแกน</p>
         </div>
 
-        <div class="toolbar">
-            <input type="text" id="empSearchInput" placeholder="🔍 ค้นหารหัสพนักงานในประวัติวันนี้..." onkeyup="renderDisplayTable()" style="flex:1; padding:15px; font-size:18px; border-radius:10px; border:2px solid #cbd5e1;">
-            <a href="index.html" class="btn-secondary">📲 หน้าสแกน</a>
-            <a href="summary.html" class="btn-purple">📊 รายงาน</a>
-            <a href="restroom.html" style="background: #009688; color: white;" class="btn-secondary">🚽 ออกนอกพื้นที่</a>
-            <a href="menu.html" class="btn-secondary">⚙️ เมนูหลัก</a>
-        </div>
+        <input type="text" id="empSearchInput" class="search-box" placeholder="🔍 ค้นหารหัสพนักงานวันนี้..." onkeyup="renderDisplayTable()">
 
-        <h3 style="color: #0284c7;">📋 ประวัติการลงเวลาวันนี้</h3>
-        <table>
-            <thead>
-                <tr>
-                    <th>รหัสพนักงาน</th>
-                    <th>🟢 วันที่ / เวลาเข้า</th>
-                    <th>🔴 วันที่ / เวลาออก</th>
-                    <th>กะ</th>
-                    <th>สถานะ</th>
-                    <th>OT</th>
-                </tr>
-            </thead>
-            <tbody id="displayList">
-                <tr><td colspan="6" style="text-align: center; color: #94a3b8; padding: 30px;">ไม่มีข้อมูลลงเวลาในขณะนี้</td></tr>
-            </tbody>
-        </table>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>รหัสพนักงาน</th>
+                        <th>🟢 เวลาเข้างาน</th>
+                        <th>🔴 เวลาออกงาน</th>
+                        <th>กะ</th>
+                        <th>สถานะ</th>
+                        <th>OT</th>
+                    </tr>
+                </thead>
+                <tbody id="displayList">
+                    <tr><td colspan="6" style="text-align: center; color: #94a3b8; padding: 30px;">ไม่พบข้อมูลการลงเวลา</td></tr>
+                </tbody>
+            </table>
+        </div>
     </div>
+
     <script src="script.js"></script>
+    <script>
+        setInterval(() => {
+            let now = new Date();
+            let clockEl = document.getElementById('clock');
+            if(clockEl) clockEl.innerText = now.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+        }, 1000);
+    </script>
 </body>
 </html>

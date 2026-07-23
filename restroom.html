@@ -1,72 +1,54 @@
-<!-- restroom.html -->
 <!DOCTYPE html>
 <html lang="th">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ระบบลงเวลาออกนอกพื้นที่ / พักเบรก - MFG-5</title>
+    <title>MFG-5 - บันทึกออกนอกพื้นที่</title>
     <link rel="stylesheet" href="style.css">
-    <style>
-        .reason-selector { display: flex; justify-content: center; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
-        .reason-btn { padding: 12px 20px; font-size: 16px; border: 2px solid #ccc; background: #fff; color: #333; border-radius: 10px; cursor: pointer; transition: all 0.2s; }
-        .reason-btn.active { background: #009688; color: white; border-color: #00796b; font-weight: bold; }
-        .timer-badge { padding: 4px 10px; border-radius: 6px; font-weight: bold; font-size: 13px; display: inline-block; }
-        .timer-normal { background: #e0f2f1; color: #00695c; }
-        .timer-over { background: #ffebee; color: #c62828; }
-    </style>
 </head>
 <body>
     <div class="container">
-        <div class="supervisor-header" style="border-left-color: #009688;">
-            <div>
-                <h1>⏱️ ระบบบันทึกเวลาออกนอกพื้นที่ / พักเบรก</h1>
-                <p class="role-badge" style="background: #e0f2f1; color: #00695c;">เลือกสาเหตุ แล้วยิงบาร์โค้ดเพื่อลงเวลาไป-กลับ</p>
-            </div>
-            <div class="clock-mini">
-                <span id="date">วันที่</span><br>
-                <span id="time" style="font-size: 20px;">00:00:00</span>
-            </div>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h2>🚻 ระบบบันทึกการออกนอกพื้นที่ / เข้าห้องน้ำ</h2>
+            <button onclick="location.href='index.html'" class="btn-secondary">⬅️ กลับหน้าหลัก</button>
         </div>
 
-        <div class="card" style="border-top: 5px solid #009688; text-align: center;">
-            <h3 style="margin-top:0;">1. เลือกสาเหตุการออกนอกพื้นที่</h3>
-            <div class="reason-selector">
-                <button type="button" class="reason-btn active" onclick="selectReason('เข้าห้องน้ำ', 15, this)">🚽 เข้าห้องน้ำ (15 นาที)</button>
-                <button type="button" class="reason-btn" onclick="selectReason('กินข้าว/ทานอาหาร', 60, this)">🍚 กินข้าว (60 นาที)</button>
-                <button type="button" class="reason-btn" onclick="selectReason('พักเบรก', 15, this)">☕ พักเบรก (15 นาที)</button>
-                <button type="button" class="reason-btn" onclick="selectReason('ประชุม', 0, this)">💼 ประชุม</button>
-                <button type="button" class="reason-btn" onclick="selectReason('อื่นๆ', 0, this)">📝 อื่นๆ</button>
-            </div>
-
-            <h3 style="margin-top:20px;">2. สแกนรหัสพนักงาน (ไป / กลับ)</h3>
-            <input type="text" id="employeeRestroom" class="scan-input" placeholder="ยิง Barcode / พิมพ์รหัสแล้วกด Enter" autofocus autocomplete="off">
-            <div id="restroomMessage" class="status-msg">พร้อมสแกนออกนอกพื้นที่</div>
+        <div class="shift-container" style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px;">
+            <button class="shift-btn active" onclick="selectReason('เข้าห้องน้ำ', 15, this)" style="flex: 1; padding: 12px; font-size: 16px; cursor: pointer;">🚻 เข้าห้องน้ำ (15 นาที)</button>
+            <button class="shift-btn" onclick="selectReason('ดื่มน้ำ/พักผ่อน', 10, this)" style="flex: 1; padding: 12px; font-size: 16px; cursor: pointer;">☕ ดื่มน้ำ/พักผ่อน (10 นาที)</button>
+            <button class="shift-btn" onclick="selectReason('พบหัวหน้างาน/ซ่อมบำรุง', 0, this)" style="flex: 1; padding: 12px; font-size: 16px; cursor: pointer;">🛠️ พบช่าง/อื่นๆ (ไม่จำกัด)</button>
         </div>
 
-        <div class="toolbar">
-            <input type="text" id="searchRestroom" placeholder="🔍 ค้นหารหัสพนักงาน..." style="flex:1; padding:10px 15px; border-radius:8px; border:1px solid #cbd5e1;">
-            <button onclick="exportRestroomExcel()" style="background: #009688; color: white;" class="btn-primary">📥 Excel</button>
-            <a href="index.html" class="btn-secondary">📲 หน้าสแกน</a>
-            <a href="summary.html" class="btn-purple">📊 รายงาน</a>
-            <a href="display.html" target="_blank" class="btn-secondary">📺 จอแสดงผล</a>
-            <a href="menu.html" class="btn-secondary">⚙️ เมนูหลัก</a>
+        <div class="scan-box">
+            <h3>สแกนรหัสพนักงานเพื่อออก / กลับเข้าพื้นที่</h3>
+            <input type="text" id="employeeRestroom" placeholder="ยิง Barcode หรือพิมพ์รหัสพนักงานแล้วกด Enter" autocomplete="off" autofocus onkeydown="handleRestroomScan(event)" style="width: 70%; padding: 12px; font-size: 16px; margin-top: 10px;">
+            <div id="restroomMessage" class="message-box">เลือกสาเหตุ: เข้าห้องน้ำ (จำกัดเวลา 15 นาที)</div>
         </div>
 
-        <table>
-            <thead>
-                <tr>
-                    <th>รหัสพนักงาน</th>
-                    <th>สาเหตุ</th>
-                    <th>เวลาเริ่ม</th>
-                    <th>เวลาออก (กลับมา)</th>
-                    <th>เวลารวมที่ใช้</th>
-                    <th>นับถอยหลัง / สถานะ</th>
-                    <th>จัดการ</th>
-                </tr>
-            </thead>
-            <tbody id="restroomList"></tbody>
-        </table>
+        <div class="action-bar">
+            <button onclick="exportRestroomExcel()" class="btn-excel">📊 ส่งออกรายงาน (CSV)</button>
+        </div>
+
+        <div class="table-container" style="margin-top: 20px;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>รหัสพนักงาน</th>
+                        <th>สาเหตุ</th>
+                        <th>เวลาเริ่มออก</th>
+                        <th>เวลากลับเข้า</th>
+                        <th>เวลารวม</th>
+                        <th>สถานะ / จับเวลา</th>
+                        <th>จัดการ</th>
+                    </tr>
+                </thead>
+                <tbody id="restroomList">
+                    <tr><td colspan="7" style="text-align: center; color: #94a3b8; padding: 30px;">ไม่พบข้อมูลการออกนอกพื้นที่</td></tr>
+                </tbody>
+            </table>
+        </div>
     </div>
+
     <script src="script.js"></script>
 </body>
 </html>

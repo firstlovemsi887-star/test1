@@ -1,58 +1,60 @@
-<!-- summary.html -->
 <!DOCTYPE html>
 <html lang="th">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>สรุปเวลาพนักงาน - MFG-5</title>
+    <title>MFG-5 - รายงานสรุปข้อมูลพนักงาน</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="container">
-        <h1>📊 รายงานสรุปเวลาพนักงานโรงงาน</h1>
-        <div class="dashboard">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h2>📄 รายงานสรุปข้อมูลการลงเวลาพนักงาน</h2>
+            <button onclick="location.href='index.html'" class="btn-secondary">⬅️ กลับหน้าหลัก</button>
+        </div>
+
+        <div class="dashboard-grid">
             <div class="card">
-                <h3>พนักงานทั้งหมด</h3>
-                <span id="sumTotal">0</span>
+                <p>พนักงานทั้งหมด</p>
+                <h3 id="sumTotal">0</h3>
             </div>
-            <div class="card card-success">
-                <h3>เข้างาน</h3>
-                <span id="sumIn">0</span>
+            <div class="card">
+                <p>เข้างานแล้ว</p>
+                <h3 id="sumIn">0</h3>
             </div>
-            <div class="card card-warning">
-                <h3>มาสาย</h3>
-                <span id="sumLate">0</span>
+            <div class="card">
+                <p>มาสาย</p>
+                <h3 id="sumLate">0</h3>
             </div>
-            <div class="card card-info">
-                <h3>ทำ OT</h3>
-                <span id="sumOT">0</span>
+            <div class="card">
+                <p>ทำ OT</p>
+                <h3 id="sumOT">0</h3>
             </div>
         </div>
 
-        <div class="toolbar">
-            <input id="search" type="text" placeholder="🔍 ค้นหารหัสพนักงาน..." style="flex:1; padding:10px 15px; border-radius:8px; border:1px solid #cbd5e1;">
-            <button type="button" onclick="exportSummary()" class="btn-primary">📥 Excel</button>
-            <a href="index.html" class="btn-secondary">📲 หน้าสแกน</a>
-            <a href="restroom.html" style="background: #009688; color: white;" class="btn-secondary">🚽 ออกนอกพื้นที่</a>
-            <a href="display.html" target="_blank" class="btn-secondary">📺 จอแสดงผล</a>
-            <a href="menu.html" class="btn-purple">⚙️ เมนูหลัก</a>
+        <div class="action-bar" style="margin-top: 20px;">
+            <button onclick="exportSummary()" class="btn-excel">📊 ส่งออกรายงาน (CSV)</button>
         </div>
 
-        <table>
-            <thead>
-                <tr>
-                    <th>รหัสพนักงาน</th>
-                    <th>🟢 วันที่ / เวลาเข้า</th>
-                    <th>🔴 วันที่ / เวลาออก</th>
-                    <th>กะ</th>
-                    <th>สถานะ</th>
-                    <th>OT</th>
-                </tr>
-            </thead>
-            <tbody id="summaryList"></tbody>
-        </table>
+        <div class="table-container" style="margin-top: 20px;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>รหัสพนักงาน</th>
+                        <th>🟢 วันที่ / เวลาเข้า</th>
+                        <th>🔴 วันที่ / เวลาออก</th>
+                        <th>กะ</th>
+                        <th>สถานะ</th>
+                        <th>OT</th>
+                    </tr>
+                </thead>
+                <tbody id="summaryList">
+                    <tr><td colspan="6" style="text-align: center; color: #94a3b8; padding: 30px;">ไม่พบข้อมูล</td></tr>
+                </tbody>
+            </table>
+        </div>
     </div>
+
     <script src="script.js"></script>
-    <script src="summary.js"></script>
 </body>
 </html>
