@@ -474,6 +474,21 @@ function exportExcel() {
 // รองรับ 2 รูปแบบ:
 //   1) ไฟล์ export จากระบบนี้เอง: รหัสพนักงาน,วันที่/เวลาเข้า(เต็ม),วันที่/เวลาออก,กะ,สถานะ,OT
 //   2) ไฟล์ตารางที่ก็อปมาจากหน้าจอ (ไม่มีหัวตาราง): รหัสพนักงาน, วันที่(YYYY-MM-DD), เวลาเข้า, เวลาออก, กะ, สถานะ, OT("ไม่มี"/"มี"), ...คอลัมน์ปุ่มที่ไม่ใช้
+// 🛠️ [แก้บัค] แปลงค่า checkIn ที่นำเข้ามา (รูปแบบ D/M/พ.ศ. H:MM:SS) กลับเป็นเวลาจริง (epoch ms)
+// เพื่อเซ็ต rawCheckInTime ให้แถวที่ยังไม่มีเวลาออก (checkOut '-') เดิมแถวนำเข้าไม่มีค่านี้เลย
+// พอมีคนสแกนรหัสเดิมซ้ำ (ตั้งใจสแกนออก) processAttendance หา rawCheckInTime ไม่เจอ เลยไม่รู้ว่ามีคน
+// เข้างานค้างอยู่ (isOtConfirmScan อ่านค่า undefined) เลยตกไปที่เงื่อนไข "สแกนเข้างานของวันนี้ไปแล้ว" ปฏิเสธตลอดไป
+// ทั้งที่จริงควรให้สแกนออกได้ตามปกติ
+function parseThaiDateTimeToRawMs(str) {
+    if (!str || str === '-') return null;
+    const m = str.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2}):(\d{2})$/);
+    if (!m) return null;
+    const [, d, mo, yearBE, h, mi, s] = m;
+    const yearCE = parseInt(yearBE, 10) - 543;
+    const dt = new Date(yearCE, parseInt(mo, 10) - 1, parseInt(d, 10), parseInt(h, 10), parseInt(mi, 10), parseInt(s, 10));
+    return isNaN(dt.getTime()) ? null : dt.getTime();
+}
+
 async function importExcel(event) {
     const file = event.target.files[0];
     if (!file) return;
@@ -542,6 +557,12 @@ async function importExcel(event) {
                 }
 
                 if (!record) { skippedCount++; return; }
+
+                // ยังไม่มีเวลาออก แปะเวลาจริงไว้ให้ เพื่อให้สแกนรหัสเดิมซ้ำภายหลังกลายเป็น "สแกนออก" ได้ถูกต้อง
+                if (record.checkOut === '-') {
+                    const rawMs = parseThaiDateTimeToRawMs(record.checkIn);
+                    if (rawMs !== null) record.rawCheckInTime = rawMs;
+                }
 
                 record.id = Date.now() + recordsToAdd.length + Math.floor(Math.random() * 1000);
                 recordsToAdd.push(record);
