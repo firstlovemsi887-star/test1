@@ -857,19 +857,25 @@ function renderEmployees() {
     const list = document.getElementById('employeeList');
     if (!list) return;
     const searchVal = document.getElementById('empSearch')?.value.toLowerCase() || '';
+    const statusFilter = document.getElementById('empStatusFilter')?.value || 'all';
     list.innerHTML = '';
     const selectAll = document.getElementById('selectAllEmp');
     if (selectAll) selectAll.checked = false;
 
-    const filtered = employeeData.filter(e =>
-        e.empCode.toLowerCase().includes(searchVal) || (e.department || '').toLowerCase().includes(searchVal)
-    );
+    const presentCodes = getPresentEmpCodesSet();
+    const filtered = employeeData.filter(e => {
+        const matchesSearch = e.empCode.toLowerCase().includes(searchVal) || (e.department || '').toLowerCase().includes(searchVal);
+        if (!matchesSearch) return false;
+        const isPresent = presentCodes.has(e.empCode);
+        if (statusFilter === 'present') return isPresent;
+        if (statusFilter === 'absent') return !isPresent;
+        return true;
+    });
     if (filtered.length === 0) {
         list.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #94a3b8; padding: 30px;">ไม่พบข้อมูลพนักงาน</td></tr>`;
         return;
     }
 
-    const presentCodes = getPresentEmpCodesSet();
     filtered.forEach(e => {
         const isPresent = presentCodes.has(e.empCode);
         let tr = document.createElement('tr');
