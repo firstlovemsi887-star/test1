@@ -1,5 +1,3 @@
-const API_URL = "https://script.google.com/macros/s/AKfycbwsqH0xnZVk5g3BJDhro4B9rKcMqYi0kGIFJcPDSulsUpT0Vs_reZQH5Ufc2QVwZ1Fi4Q/exec";
-
 let attendanceData = JSON.parse(localStorage.getItem('mfg5_attendance')) || [];
 let restroomData = JSON.parse(localStorage.getItem('factoryRestroom')) || [];
 const scanChannel = new BroadcastChannel('mfg5_scan_channel');
@@ -69,7 +67,7 @@ function showConfirm(message, onYes) {
     newNoBtn.onclick = () => { modal.style.display = 'none'; };
 }
 
-// 🛡️ ป้องกัน XSS: escape ค่าก่อนแทรกลง innerHTML เพราะข้อมูลอาจมาจาก cloud API ที่ไม่มี auth หรือไฟล์นำเข้า/แก้ไขเองได้
+// 🛡️ ป้องกัน XSS: escape ค่าก่อนแทรกลง innerHTML เพราะข้อมูลอาจมาจากไฟล์นำเข้า/แก้ไขเองได้
 function escapeHtml(str) {
     if (str === undefined || str === null) return '';
     return String(str)
@@ -78,101 +76,6 @@ function escapeHtml(str) {
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#39;');
-}
-
-// 🛠️ ฟังก์ชันช่วยแปลงวันที่จาก ISO String ให้เป็นรูปแบบวันที่/เวลาไทย
-// [แก้บัค] เดิมค่า checkIn/checkOut ที่ส่งขึ้น cloud เป็น string ปี พ.ศ. อยู่แล้ว (เช่น "24/7/2569 17:17:57")
-// พอ cloud คืนค่าเดิมกลับมา (เก็บเป็น text เฉยๆ ไม่ได้แปลงอะไร) ฟังก์ชันนี้จะเอาไปสร้าง new Date() ซ้ำ
-// ซึ่ง JS ตีความเลข 2569 เป็นปี ค.ศ. ตรงๆ (ไม่รู้จักปี พ.ศ.) แล้ว toLocaleDateString('th-TH') ก็บวก 543
-// ซ้ำเข้าไปอีกรอบ กลายเป็นปี 3112 ทำให้ค่า checkIn ที่ merge เทียบกับของ local ไม่ตรงกัน (เพราะปีเพี้ยน)
-// เห็นเป็นแถวซ้ำที่ปีไม่ตรงกันหลังรีเฟรช ตอนนี้ถ้าค่าที่ได้มาอยู่ในรูปแบบไทยของแอปเราอยู่แล้ว (D/M/พ.ศ. H:MM:SS)
-// ให้ใช้ค่าเดิมตรงๆ เลย ไม่ต้องแปลงซ้ำ
-const THAI_FORMATTED_DATE_RE = /^\d{1,2}\/\d{1,2}\/\d{4}\s\d{1,2}:\d{2}:\d{2}$/;
-function formatCloudDate(dateStr) {
-    if (!dateStr || dateStr === '-') return '-';
-    if (THAI_FORMATTED_DATE_RE.test(dateStr)) return dateStr;
-    let d = new Date(dateStr);
-    if (!isNaN(d.getTime())) {
-        let datePart = d.toLocaleDateString('th-TH');
-        let timePart = d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
-        return `${datePart} ${timePart}`;
-    }
-    return dateStr;
-}
-
-// 🛠️ ผสาน (merge) ข้อมูลจาก cloud กับ local โดยไม่ทิ้งแถวที่มีอยู่ใน local แต่ยังไม่ถูกซิงค์ขึ้น cloud สำเร็จ
-// [แก้บัค] เดิมจับคู่แถวเดียวกันด้วย id เป็นหลัก แต่ id ฝั่ง client สร้างจาก Date.now() ตอนสแกน
-// ถ้า cloud (Google Sheets) ไม่คืนค่า id เดิมกลับมาเป๊ะๆ (เช่นปัดเศษ/แปลงชนิดข้อมูลตอนบันทึกลงชีต)
-// แถวเดิมใน local กับแถวที่เพิ่งดึงจาก cloud จะถูกมองเป็นคนละแถว พอรีเฟรชหน้าเลยเห็นรหัสเดิมเด้งซ้ำ
-// ตอนนี้จับคู่ด้วย "natural key" ของแถว (รหัสพนักงาน+เวลาที่สแกนจริง) เป็นหลักเสมอ ซึ่งไม่ขึ้นกับว่า cloud จะคืน id ตรงกับที่ส่งไปหรือไม่
-// แถวที่ตรงกันทั้งสองฝั่ง ใช้เวอร์ชันจาก cloud (ถือว่า cloud คือข้อมูลล่าสุดของแถวนั้น)
-// แถวที่มีเฉพาะใน local (เช่น เพิ่งนำเข้า/สแกน แต่ยังส่งขึ้น cloud ไม่สำเร็จ) จะยังคงอยู่ ไม่ถูกลบทิ้ง
-function mergeCloudWithLocal(cloudArr, localArr, keyFn) {
-    const map = new Map();
-    localArr.forEach(item => map.set(keyFn(item), item));
-    cloudArr.forEach(item => map.set(keyFn(item), item));
-    let merged = Array.from(map.values());
-    merged.sort((a, b) => (Number(b.id) || 0) - (Number(a.id) || 0));
-    return merged;
-}
-function attendanceKey(item) { return `${item.empCode}|${item.date}|${item.checkIn}`; }
-function restroomKey(item) { return `${item.empCode}|${item.startTime}`; }
-
-async function fetchCloudData() {
-    try {
-        let resAtt = await fetch(`${API_URL}?sheet=attendance`);
-        let attJson = await resAtt.json();
-        if (Array.isArray(attJson)) {
-            // แปลงรูปแบบวันที่/เวลาที่ดึงมาจาก Cloud ให้แสดงผลเป็นรูปแบบไทย
-            let cloudFormatted = attJson.map(item => {
-                return {
-                    ...item,
-                    checkIn: formatCloudDate(item.checkIn),
-                    checkOut: formatCloudDate(item.checkOut)
-                };
-            });
-            if (cloudFormatted.length === 0) {
-                // 🛠️ cloud ว่างจริง (เช่นเพิ่งกด "ล้างข้อมูล" จากเครื่องไหนก็ตาม) ให้เชื่อและล้าง local ตาม
-                attendanceData = [];
-            } else {
-                // 🛠️ [แก้บัค] เดิมทับ local ด้วยของ cloud ตรงๆ ถ้า cloud มาไม่ครบ (เช่น backend รับพร้อมกันไม่ไหวตอนนำเข้าไฟล์ใหญ่)
-                // ข้อมูลที่เพิ่งนำเข้า/สแกนแต่ยังไม่ถูกบันทึกขึ้น cloud จะหายไปทันที — ตอนนี้ผสาน (merge) แทนการทับ
-                let currentLocal = JSON.parse(localStorage.getItem('mfg5_attendance')) || [];
-                attendanceData = mergeCloudWithLocal(cloudFormatted, currentLocal, attendanceKey);
-            }
-            localStorage.setItem('mfg5_attendance', JSON.stringify(attendanceData));
-        }
-
-        let resRest = await fetch(`${API_URL}?sheet=restroom`);
-        let restJson = await resRest.json();
-        if (Array.isArray(restJson)) {
-            if (restJson.length === 0) {
-                restroomData = [];
-            } else {
-                let currentLocalRestroom = JSON.parse(localStorage.getItem('factoryRestroom')) || [];
-                restroomData = mergeCloudWithLocal(restJson, currentLocalRestroom, restroomKey);
-            }
-            localStorage.setItem('factoryRestroom', JSON.stringify(restroomData));
-        }
-
-        loadDashboard();
-        showSummary();
-        renderTable();
-        renderRestroom();
-        renderDisplayTable();
-    } catch (err) {
-        console.error("ใช้ข้อมูล Local แทน", err);
-    }
-}
-
-async function sendToCloud(payload) {
-    try {
-        const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify(payload) });
-        return res.ok;
-    } catch (err) {
-        console.error("บันทึก Cloud ไม่สำเร็จ", err);
-        return false;
-    }
 }
 
 function updateClock() {
@@ -193,7 +96,6 @@ document.addEventListener('click', function(e) {
 });
 
 function loadDashboard() {
-    attendanceData = JSON.parse(localStorage.getItem("mfg5_attendance")) || [];
     let sumTotal = document.getElementById("sumTotal");
     let sumIn = document.getElementById("sumIn");
     let sumLate = document.getElementById("sumLate");
@@ -247,7 +149,7 @@ function handleScan(event) {
         if (!rawCode) return;
 
         const empCode = extractEmpCode(rawCode);
-        
+
         // ตรวจสอบความยาวรหัสต้องเป็น 6 ตัวอักษร
         if (empCode.length !== 6) {
             playBeep('warning');
@@ -325,10 +227,6 @@ function processAttendance(empCode) {
             messageBox.style.color = '#ea580c';
         }
         scanChannel.postMessage({ type: 'CHECK_OUT', empCode, status: record.status, ot: otStr, shift: record.shift, time: timeStr });
-        sendToCloud({
-            sheet: 'attendance', action: 'update_checkout', empCode: empCode,
-            date: record.date, checkOut: fullDateTimeStr, ot: otStr
-        });
     } else {
         // --- สแกนเข้างานของวันนี้ ---
         let alreadyToday = attendanceData.find(item => item.empCode === empCode && item.date === todayStr);
@@ -373,7 +271,6 @@ function processAttendance(empCode) {
             messageBox.style.color = statusStr.includes("สาย") ? '#d32f2f' : '#2e7d32';
         }
         scanChannel.postMessage({ type: 'CHECK_IN', empCode, status: statusStr, shift: currentShift, time: timeStr });
-        sendToCloud({ sheet: 'attendance', action: 'add', ...newRecord });
     }
 
     saveAndRenderApp();
@@ -451,7 +348,7 @@ function openEditModal(id) {
     document.getElementById('editCheckIn').value = record.checkIn;
     document.getElementById('editCheckOut').value = record.checkOut;
     document.getElementById('editShift').value = record.shift;
-    
+
     // 🛠️ กำหนดค่าสถานะให้เลือก Dropdown เป็น "สาย" หรือ "ปกติ" อัตโนมัติ
     const statusSelect = document.getElementById('editStatus');
     if ((record.status || '').includes('สาย')) {
@@ -481,14 +378,6 @@ function saveEdit() {
         record.ot = document.getElementById('editOt').value;
         saveAndRenderApp();
         closeEditModal();
-
-        // 🛠️ [แก้บัค] เดิมแก้ไขแค่ local ไม่ sync ขึ้น cloud เลย พอโหลดข้อมูลใหม่จาก cloud
-        // (fetchCloudData merge โดยให้ cloud ทับ local เมื่อ id ตรงกัน) ค่าที่แก้ไขจะถูกเขียนทับกลับเป็นค่าเดิม
-        sendToCloud({
-            sheet: 'attendance', action: 'update', id: record.id, empCode: record.empCode,
-            date: record.date, checkIn: record.checkIn, checkOut: record.checkOut,
-            shift: record.shift, status: record.status, ot: record.ot
-        });
         scanChannel.postMessage({ type: 'REFRESH_DATA' });
     }
 }
@@ -500,20 +389,8 @@ function saveAndRenderApp() {
 }
 
 function performDeleteRecord(id) {
-    const recordToDelete = attendanceData.find(i => i.id === id);
     attendanceData = attendanceData.filter(i => i.id !== id);
     saveAndRenderApp();
-
-    // 🛠️ ส่งคำสั่งลบไปที่ Cloud และบอกหน้าอื่นๆ ให้รีเฟรช
-    if (recordToDelete) {
-        sendToCloud({
-            sheet: 'attendance',
-            action: 'delete',
-            id: recordToDelete.id,
-            empCode: recordToDelete.empCode,
-            date: recordToDelete.date
-        });
-    }
     scanChannel.postMessage({ type: 'REFRESH_DATA' });
 }
 
@@ -533,7 +410,6 @@ function clearData() {
     showConfirm('⚠️ ต้องการล้างข้อมูลการลงเวลาทั้งหมดใช่หรือไม่?', () => {
         attendanceData = [];
         saveAndRenderApp();
-        sendToCloud({ sheet: 'attendance', action: 'clear' });
 
         // 🛠️ ส่งสัญญาณบอกหน้าอื่นๆ ให้ล้างข้อมูลตาม
         scanChannel.postMessage({ type: 'REFRESH_DATA' });
@@ -542,7 +418,7 @@ function clearData() {
 
 function exportExcel() {
     if (attendanceData.length === 0) { alert("ไม่มีข้อมูล"); return; }
-    let csv = "\ufeffรหัสพนักงาน,วันที่/เวลาเข้า,วันที่/เวลาออก,กะ,สถานะ,OT\n";
+    let csv = "﻿รหัสพนักงาน,วันที่/เวลาเข้า,วันที่/เวลาออก,กะ,สถานะ,OT\n";
     attendanceData.forEach(x => { csv += `${x.empCode},${x.checkIn},${x.checkOut},${x.shift},${x.status},${x.ot}\n`; });
     downloadCSV(csv, `attendance_log_${new Date().toISOString().slice(0, 10)}.csv`);
 }
@@ -558,8 +434,7 @@ async function importExcel(event) {
     const isExcel = fileName.endsWith('.xlsx') || fileName.endsWith('.xls');
 
     const reader = new FileReader();
-    reader.onload = async function(e) {
-        const messageBox = document.getElementById('message');
+    reader.onload = function(e) {
         try {
             let rows = [];
 
@@ -573,14 +448,10 @@ async function importExcel(event) {
                 const sheet = workbook.Sheets[workbook.SheetNames[0]];
                 rows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: false, defval: '' });
             } else {
-                let text = e.target.result.replace(/^\ufeff/, ''); // ตัด BOM ออก
+                let text = e.target.result.replace(/^﻿/, ''); // ตัด BOM ออก
                 rows = text.split(/\r?\n/).filter(l => l.trim() !== '').map(line => line.split(','));
             }
 
-            // 🛠️ [แก้บัค] เดิมยิง sendToCloud พร้อมกันทีเดียวทุกแถว (ไม่ await) — ถ้านำเข้าหลายสิบแถว
-            // Google Apps Script รับพร้อมกันไม่ไหว บางแถวจะไม่ถูกบันทึกจริงที่ cloud แบบเงียบๆ
-            // พอไปเปิดหน้าสรุป ระบบดึงข้อมูล cloud (ที่ไม่ครบ) มาทับ local ทำให้ยอดนับผิด
-            // ตอนนี้ส่งทีละแถวตามลำดับ พร้อมหน่วงเล็กน้อยกันยิงถี่เกินไป
             let recordsToAdd = [];
             let skippedCount = 0;
 
@@ -634,25 +505,10 @@ async function importExcel(event) {
                 return;
             }
 
-            // เพิ่มลง local ทันทีเพื่อให้เห็นผลไว แล้วค่อยทยอยส่งขึ้น cloud ทีละแถว
             recordsToAdd.forEach(r => attendanceData.unshift(r));
             saveAndRenderApp();
-
-            let syncedCount = 0;
-            for (let i = 0; i < recordsToAdd.length; i++) {
-                if (messageBox) messageBox.innerText = `⏳ กำลังนำเข้าและซิงค์ข้อมูลขึ้น cloud... (${i + 1}/${recordsToAdd.length})`;
-                try {
-                    const ok = await sendToCloud({ sheet: 'attendance', action: 'add', ...recordsToAdd[i] });
-                    if (ok) syncedCount++;
-                } catch (err) {
-                    console.error("ซิงค์แถวนี้ขึ้น cloud ไม่สำเร็จ", recordsToAdd[i], err);
-                }
-                await new Promise(resolve => setTimeout(resolve, 150)); // หน่วงกันยิง cloud ถี่เกินไปจนบางแถวหลุด
-            }
-
             scanChannel.postMessage({ type: 'REFRESH_DATA' }); // แจ้งจอแสดงผล/แท็บอื่นให้รีเฟรช
-            if (messageBox) messageBox.innerText = `พร้อมสแกน [${currentShift}]`;
-            alert(`นำเข้าข้อมูลสำเร็จ ${recordsToAdd.length} รายการ (ซิงค์ขึ้น cloud ${syncedCount}/${recordsToAdd.length})${skippedCount > 0 ? ` — ข้าม ${skippedCount} แถวที่ข้อมูลไม่ครบ/รูปแบบไม่ตรง` : ''}`);
+            alert(`นำเข้าข้อมูลสำเร็จ ${recordsToAdd.length} รายการ${skippedCount > 0 ? ` — ข้าม ${skippedCount} แถวที่ข้อมูลไม่ครบ/รูปแบบไม่ตรง` : ''}`);
         } catch (err) {
             console.error("นำเข้าข้อมูลล้มเหลว", err);
             alert("ไม่สามารถอ่านไฟล์ได้ กรุณาตรวจสอบว่าเป็นไฟล์ CSV หรือ Excel ที่ถูกต้อง");
@@ -709,7 +565,7 @@ function handleRestroomScan(event) {
         if(!rawCode) return;
 
         let empCode = extractEmpCode(rawCode);
-        
+
         if (empCode.length !== 6) {
             playBeep('warning');
             const msg = document.getElementById('restroomMessage');
@@ -737,24 +593,18 @@ function handleRestroomScan(event) {
             };
             restroomData.unshift(newRec);
             playBeep('success');
-            sendToCloud({ sheet: 'restroom', action: 'add', ...newRec });
         } else {
             activeRecord.returnTime = timeStr;
             let diffMins = Math.floor((now.getTime() - activeRecord.rawStartTime) / 60000);
             activeRecord.duration = `${diffMins} นาที`;
             activeRecord.status = 'กลับเข้าพื้นที่แล้ว';
             playBeep('success');
-            // 🛠️ [แก้บัค] เดิมตอนกลับเข้าพื้นที่ไม่ sync ขึ้น cloud เลย (มีแต่ตอนออก) พอโหลดข้อมูลใหม่จาก cloud
-            // ในภายหลัง สถานะจะถูกเขียนทับกลับเป็น "ออกนอกพื้นที่" เหมือนยังไม่ได้กลับ
-            sendToCloud({
-                sheet: 'restroom', action: 'update', id: activeRecord.id, empCode: activeRecord.empCode,
-                returnTime: activeRecord.returnTime, duration: activeRecord.duration, status: activeRecord.status
-            });
         }
 
         localStorage.setItem('factoryRestroom', JSON.stringify(restroomData));
         input.value = '';
         renderRestroom();
+        scanChannel.postMessage({ type: 'REFRESH_DATA' });
     }
 }
 
@@ -764,8 +614,6 @@ function renderRestroom() {
     list.innerHTML = '';
     const now = Date.now();
     restroomData.forEach(item => {
-        // 🛠️ [แก้บัค] เดิมตัดสิน "เกินเวลา" จากแค่สถานะยังไม่กลับเข้า ไม่ได้เทียบเวลาจริงกับ limitMins เลย
-        // ทำให้เพิ่งออกไปไม่กี่วินาทีก็ขึ้นแดง "เกินเวลา" ทันที ตอนนี้เทียบเวลาที่ผ่านไปจริงกับ limit
         let isOver = false;
         if (item.limitMins > 0) {
             if (item.status === 'ออกนอกพื้นที่') {
@@ -790,24 +638,19 @@ function renderRestroom() {
     });
 }
 
-// 🛠️ อัปเดตป้ายเกินเวลาเป็นระยะ เผื่อมีคนยังค้าง "ออกนอกพื้นที่" อยู่และเวลาผ่านจน worse เกิน limit
+// 🛠️ อัปเดตป้ายเกินเวลาเป็นระยะ เผื่อมีคนยังค้าง "ออกนอกพื้นที่" อยู่และเวลาผ่านจนเกิน limit
 setInterval(() => { if (document.getElementById('restroomList')) renderRestroom(); }, 15000);
 
 function deleteRestroom(id) {
-    // 🛠️ [แก้บัค] เดิมลบแค่ local ไม่ได้แจ้ง cloud เลย ทำให้ cloud ยังมีเรคคอร์ดเดิมอยู่
-    // พอโหลดข้อมูลใหม่จาก cloud รายการที่ลบไปแล้วจะโผล่กลับมา
-    const toDelete = restroomData.find(x => x.id === id);
     restroomData = restroomData.filter(x => x.id !== id);
     localStorage.setItem('factoryRestroom', JSON.stringify(restroomData));
     renderRestroom();
-    if (toDelete) {
-        sendToCloud({ sheet: 'restroom', action: 'delete', id: toDelete.id, empCode: toDelete.empCode });
-    }
+    scanChannel.postMessage({ type: 'REFRESH_DATA' });
 }
 
 function exportRestroomExcel() {
     if(restroomData.length === 0) { alert("ไม่มีข้อมูล"); return; }
-    let csv = "\ufeffรหัสพนักงาน,สาเหตุ,เวลาเริ่มออก,เวลากลับเข้า,เวลารวม,สถานะ\n";
+    let csv = "﻿รหัสพนักงาน,สาเหตุ,เวลาเริ่มออก,เวลากลับเข้า,เวลารวม,สถานะ\n";
     restroomData.forEach(x => { csv += `${x.empCode},${x.reason},${x.startTime},${x.returnTime},${x.duration},${x.status}\n`; });
     downloadCSV(csv, `restroom_log_${new Date().toISOString().slice(0, 10)}.csv`);
 }
@@ -816,12 +659,14 @@ function exportRestroomExcel() {
 scanChannel.onmessage = (event) => {
     let data = event.data;
 
-    // 🛠️ รองรับคำสั่งรีเฟรชข้อมูลหน้าจอเมื่อมีการลบ
+    // 🛠️ รองรับคำสั่งรีเฟรชข้อมูลทุกหน้าที่เปิดอยู่บนเครื่องนี้ (ลบ/แก้ไข/สแกนห้องน้ำ ฯลฯ) ให้เห็นข้อมูลตรงกันทันที
     if (data.type === 'REFRESH_DATA') {
         attendanceData = JSON.parse(localStorage.getItem('mfg5_attendance')) || [];
+        restroomData = JSON.parse(localStorage.getItem('factoryRestroom')) || [];
         loadDashboard();
         renderTable();
         showSummary();
+        renderRestroom();
         renderDisplayTable();
         return;
     }
@@ -843,6 +688,7 @@ scanChannel.onmessage = (event) => {
             details.innerText = `OT: ${data.ot} | เวลา: ${data.time}`;
         }
     }
+    attendanceData = JSON.parse(localStorage.getItem('mfg5_attendance')) || [];
     renderDisplayTable();
 };
 
@@ -851,7 +697,7 @@ function renderDisplayTable() {
     if(!tbody) return;
     const searchVal = document.getElementById('empSearchInput')?.value.toLowerCase() || '';
     tbody.innerHTML = '';
-    
+
     let filtered = attendanceData.filter(i => (i.empCode || '').toLowerCase().includes(searchVal));
     if (filtered.length === 0) {
         tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: #94a3b8; padding: 30px;">ไม่พบข้อมูลการลงเวลา</td></tr>`;
@@ -872,6 +718,9 @@ function renderDisplayTable() {
     });
 }
 
+// 🛠️ ระบบนี้ไม่มี backend กลาง — ข้อมูลอยู่ใน localStorage ของเบราว์เซอร์เครื่องนี้เครื่องเดียวเท่านั้น
+// การ "ใช้ร่วมกัน" ทำได้โดยเปิดหลายแท็บ/หน้าต่างพร้อมกันบนเครื่องเดียวกัน (เช่น แท็บสแกน + แท็บจอแสดงผล)
+// ซึ่งจะซิงค์กันแบบเรียลไทม์ผ่าน BroadcastChannel (ระหว่างที่เปิดอยู่) และ storage event (ข้ามแท็บที่โหลดใหม่)
 window.addEventListener('storage', (e) => {
     if (e.key === 'mfg5_attendance') {
         attendanceData = JSON.parse(e.newValue) || [];
@@ -887,9 +736,9 @@ window.addEventListener('storage', (e) => {
 });
 
 document.addEventListener("DOMContentLoaded", () => {
-    fetchCloudData();
     document.getElementById('employee')?.focus();
     document.getElementById('employeeRestroom')?.focus();
+    loadDashboard();
     renderTable();
     showSummary();
     renderRestroom();
