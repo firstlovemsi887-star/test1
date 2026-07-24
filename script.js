@@ -123,7 +123,6 @@ function loadDashboard() {
     if(sumOT) sumOT.innerHTML = attendanceData.filter(x => x.ot && x.ot === "ทำ").length;
 }
 
-let isScanning = false;
 let currentShift = 'กะเช้า';
 
 function convertThaiToEng(str) {
@@ -158,7 +157,6 @@ function setShift(shiftName, btnElement) {
 function handleScan(event) {
     if (event.key === 'Enter' || event.keyCode === 13 || event.key === 'Tab') {
         event.preventDefault();
-        if (isScanning) return;
         const input = document.getElementById('employee');
         if(!input) return;
         let rawCode = input.value.trim();
@@ -179,10 +177,14 @@ function handleScan(event) {
             return;
         }
 
-        isScanning = true;
+        // 🛠️ [แก้บัค] เดิมล็อคห้ามสแกนใหม่ทั้งหน้าจอ 200ms หลังทุกครั้งที่สแกน (ไม่ใช่แค่คนเดิม) ทำให้ถ้ามีคิว
+        // สแกนต่อกันเร็ว (เช่นช่วงเข้ากะพร้อมกันหลายร้อย/พันคน) รหัสของคนถัดไปที่ยิงมาในช่วง 200ms นั้นจะถูกทิ้งเงียบๆ
+        // ไม่มีเสียงเตือน ไม่มีข้อความ เหมือนสแกนไม่ติด ทั้งที่ processAttendance ทำงานเสร็จตั้งแต่ก่อนจะคืนค่าฟังก์ชันแล้ว
+        // (ไม่มีการ await ใดๆ ในนี้อีกต่อไปหลังจากตัดระบบ cloud ออก) จึงไม่จำเป็นต้องหน่วงเวลาแบบนี้เลย
+        // การกันสแกนซ้ำของ "คนเดิม" ในเวลาไล่เลี่ยกัน มี lastScanTimeMap (500ms ต่อรหัส) ป้องกันอยู่แล้วในตัว processAttendance
         processAttendance(empCode);
         input.value = '';
-        setTimeout(() => { isScanning = false; input.focus(); }, 200);
+        input.focus();
     }
 }
 
