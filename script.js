@@ -221,60 +221,80 @@ function handleScan(event) {
     }
 }
 
+// 🕐 กติกากะ/OT (ยืนยันกับหน้างานแล้ว):
+//   กะเช้า: เข้างาน 08:00 ตรง ไม่มีเกรซ (สายทันทีถ้าเกิน 08:00) เลิกงานปกติ 17:30
+//           คนไม่ทำ OT จะไม่สแกนขาออกเลย — สแกนครั้งเดียวตอนเข้างานถือว่าจบวันนั้น
+//           คนทำ OT สแกนซ้ำตอนออก ระบบให้ OT อัตโนมัติถ้าสแกนช่วง 18:00–20:00
+//   กะดึก: เข้างาน 20:00 ตรง ไม่มีเกรซ เลิกงานปกติ 05:30 (วันถัดไป)
+//           คนทำ OT สแกนขาออกช่วง 06:00–08:00 ถึงจะได้ OT อัตโนมัติ
+//   ทั้งสองกะ: ให้เกรซ 10 นาทีที่ "จุดเริ่ม" ช่วง OT (17:50 / 05:50) กันกรณีคิวสแกนช่วงเลิกงานคนแน่น
+//   ⚠️ ยังไม่ได้ยืนยันว่า 10 นาทีนี้ควรอยู่ตรงจุดเริ่มหรือจุดปิดช่วง OT — ถ้าไม่ตรงกับที่ต้องการ แจ้งได้เลย
 function processAttendance(empCode) {
     const now = new Date();
     const currentTime = now.getTime();
     const messageBox = document.getElementById('message');
-    
+
     // 🛑 ป้องกันสแกนซ้ำภายใน 0.5 วินาที (500 มิลลิวินาที)
     if (lastScanTimeMap[empCode] && (currentTime - lastScanTimeMap[empCode] < 500)) {
         playBeep('warning');
-        if(messageBox) {
+        if (messageBox) {
             messageBox.innerText = `⚠️ รหัส ${empCode} สแกนเร็วเกินไป กรุณารอสักครู่`;
             messageBox.style.color = '#f59e0b';
         }
         return;
     }
-    
     lastScanTimeMap[empCode] = currentTime;
 
     const todayStr = now.toLocaleDateString('th-TH');
     const timeStr = now.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
     const fullDateTimeStr = `${todayStr} ${timeStr}`;
-    
-    // 🛠️ [แก้บัค] หาเรคคอร์ดที่ "ยังไม่ปิด" (checkOut === '-') ของพนักงานคนนี้ก่อนเสมอ
-    // ไม่กรองด้วย todayStr เพราะกะดึกอาจเช็คอินวันที่ A แล้วมาเช็คเอาท์วันที่ A+1
-    // (ของเดิมกรองด้วยวันที่ปัจจุบันเลยหาเรคคอร์ดเช็คอินของเมื่อคืนไม่เจอ กลายเป็นเช็คอินซ้ำ)
-    let record = attendanceData.find(item => item.empCode === empCode && item.checkOut === '-');
+    const currentMinutes = now.getHours() * 60 + now.getMinutes();
 
-    // 🛠️ [แก้บัค] ถ้า record ที่ยังไม่ปิดค้างอยู่นานเกินไป (ลืมสแกนออกจริงๆ ไม่ใช่ข้ามกะปกติ)
-    // ห้ามเอามาปิดด้วยสแกนใหม่วันนี้ ไม่งั้นวันนี้จะไม่มีการบันทึกเข้างานเลย
-    // เพดานกว้างพอสำหรับกะปกติ+OT ข้ามเที่ยงคืน (กะดึกเข้า 20:00 ออกเช้าอีกวัน) แต่ไม่กว้างจนข้ามไปอีกวันได้
-    const STALE_OPEN_MS = 20 * 60 * 60 * 1000; // 20 ชั่วโมง
-    if (record && record.rawCheckInTime && (currentTime - record.rawCheckInTime > STALE_OPEN_MS)) {
-        record.checkOut = 'ไม่ได้สแกนออก (ระบบปิดอัตโนมัติ)';
+    // 🛠️ เพราะคนไม่ทำ OT ไม่สแกนขาออก checkOut '-' คือสถานะปกติตลอดไปสำหรับวันนั้น ไม่ใช่ข้อผิดพลาด
+    // สแกนครั้งที่ 2 ของพนักงานคนเดิมจะถือเป็น "ยืนยัน OT" ก็ต่อเมื่อยังอยู่ในช่วงกะเดียวกัน (เช็คจากเวลาที่ผ่านไปจริง
+    // ไม่ใช่วันที่ตามปฏิทิน เพราะกะดึกข้ามเที่ยงคืน) ถ้าพ้นช่วงนี้ไปแล้วให้ถือเป็นการสแกนเข้างานของกะ/วันใหม่เสมอ
+    const SAME_SHIFT_WINDOW_MS = 20 * 60 * 60 * 1000; // 20 ชม. ครอบคลุมกะ + ช่วง OT แต่ไม่ข้ามไปกะถัดไป
+    const openRecord = attendanceData.find(item => item.empCode === empCode && item.checkOut === '-');
+    const isOtConfirmScan = openRecord && openRecord.rawCheckInTime && (currentTime - openRecord.rawCheckInTime <= SAME_SHIFT_WINDOW_MS);
+
+    if (isOtConfirmScan) {
+        // --- สแกนครั้งที่ 2: ยืนยัน OT ของกะที่เข้างานไว้ ---
+        const record = openRecord;
+        record.checkOut = fullDateTimeStr;
+
+        let otStr = 'ไม่ทำ';
+        if (record.shift === 'กะเช้า' && currentMinutes >= (17 * 60 + 50) && currentMinutes <= (20 * 60)) {
+            otStr = 'ทำ';
+        } else if (record.shift === 'กะดึก' && now.getHours() < 12 && currentMinutes >= (5 * 60 + 50) && currentMinutes <= (8 * 60)) {
+            otStr = 'ทำ';
+        }
+        record.ot = otStr;
+
+        playBeep('success');
+        if (messageBox) {
+            messageBox.innerText = otStr === 'ทำ'
+                ? `🔴 [ยืนยันทำ OT] รหัส: ${empCode} เวลาออก: ${timeStr}`
+                : `🔴 [สแกนขาออก - นอกช่วงเวลา OT จึงไม่นับ OT] รหัส: ${empCode} เวลาออก: ${timeStr}`;
+            messageBox.style.color = '#ea580c';
+        }
+        scanChannel.postMessage({ type: 'CHECK_OUT', empCode, status: record.status, ot: otStr, shift: record.shift, time: timeStr });
         sendToCloud({
-            sheet: 'attendance', action: 'update', id: record.id, empCode: record.empCode,
-            date: record.date, checkOut: record.checkOut, status: record.status, ot: record.ot
+            sheet: 'attendance', action: 'update_checkout', empCode: empCode,
+            date: record.date, checkOut: fullDateTimeStr, ot: otStr
         });
-        record = null;
-    }
-
-    if (!record) {
-        // 🛑 ตรวจสอบว่าวันนี้พนักงานคนนี้สแกนครบ 2 ครั้ง (เข้า-ออก) ไปแล้วหรือยัง
-        let completedToday = attendanceData.find(item => item.empCode === empCode && item.date === todayStr && item.checkOut !== '-');
-        if (completedToday) {
+    } else {
+        // --- สแกนเข้างานของวันนี้ ---
+        let alreadyToday = attendanceData.find(item => item.empCode === empCode && item.date === todayStr);
+        if (alreadyToday) {
             playBeep('warning');
-            if(messageBox) {
-                messageBox.innerText = `⚠️ รหัส ${empCode} ได้สแกนครบ 2 ครั้ง (เข้า-ออก) สำหรับวันนี้แล้ว!`;
+            if (messageBox) {
+                messageBox.innerText = `⚠️ รหัส ${empCode} สแกนเข้างานของวันนี้ไปแล้ว (${alreadyToday.checkOut !== '-' ? 'ยืนยัน OT แล้ว' : 'ไม่ทำ OT'})`;
                 messageBox.style.color = '#d32f2f';
             }
             return;
         }
-        // --- สแกนครั้งที่ 1: บันทึกเข้างาน ---
-        let statusStr = "ปกติ";
-        let currentMinutes = now.getHours() * 60 + now.getMinutes();
 
+        let statusStr = "ปกติ";
         if (currentShift === 'กะเช้า' && currentMinutes > (8 * 60)) {
             statusStr = `สาย (${currentMinutes - (8 * 60)} นาที)`;
         } else if (currentShift === 'กะดึก') {
@@ -283,7 +303,7 @@ function processAttendance(empCode) {
                 statusStr = `สาย (${currentMinutes - shiftInMinutes} นาที)`;
             } else if (now.getHours() < 12) {
                 let lateMins = (currentMinutes + 1440) - shiftInMinutes;
-                if(lateMins > 0) statusStr = `สาย (${lateMins} นาที)`;
+                if (lateMins > 0) statusStr = `สาย (${lateMins} นาที)`;
             }
         }
 
@@ -301,42 +321,12 @@ function processAttendance(empCode) {
 
         attendanceData.unshift(newRecord);
         playBeep('success');
-        if(messageBox) {
-            messageBox.innerText = `🟢 [เข้างานครั้งที่ 1 - ${currentShift}] รหัส: ${empCode} (${statusStr})`;
+        if (messageBox) {
+            messageBox.innerText = `🟢 [เข้างาน - ${currentShift}] รหัส: ${empCode} (${statusStr}) — ถ้าทำ OT ให้สแกนซ้ำตอนออกในช่วงเวลา OT`;
             messageBox.style.color = statusStr.includes("สาย") ? '#d32f2f' : '#2e7d32';
         }
         scanChannel.postMessage({ type: 'CHECK_IN', empCode, status: statusStr, shift: currentShift, time: timeStr });
         sendToCloud({ sheet: 'attendance', action: 'add', ...newRecord });
-    } else {
-        // --- สแกนครั้งที่ 2: บันทึกออกงาน ---
-        record.checkOut = fullDateTimeStr;
-        let otStr = "ไม่ทำ";
-        let outMinutes = now.getHours() * 60 + now.getMinutes();
-
-        if (record.shift === 'กะเช้า' && outMinutes >= (18 * 60)) {
-            otStr = "ทำ";
-        } else if (record.shift === 'กะดึก' && now.getHours() < 12 && outMinutes >= (6 * 60)) {
-            otStr = "ทำ";
-        }
-
-        record.ot = otStr;
-        playBeep('success');
-        if(messageBox) {
-            messageBox.innerText = `🔴 [สแกนออกครั้งที่ 2 - สิ้นสุดวันนี้] รหัส: ${empCode} (OT: ${otStr})`;
-            messageBox.style.color = '#ea580c';
-        }
-        scanChannel.postMessage({ type: 'CHECK_OUT', empCode, status: record.status, ot: otStr, shift: record.shift, time: timeStr });
-        sendToCloud({
-            sheet: 'attendance',
-            action: 'update_checkout',
-            empCode: empCode,
-            // 🛠️ [แก้บัค] ต้องส่ง "วันที่ตอนเช็คอิน" (record.date) ไม่ใช่วันนี้ (todayStr)
-            // เพราะกะดึกอาจเช็คอินวันที่ A แล้วมาเช็คเอาท์วันที่ A+1 — ถ้าส่ง todayStr ไป backend
-            // จะหาแถวเดิม (ที่ผูกกับวันที่ A) ไม่เจอ ทำให้อัปเดต checkout ขึ้น cloud ล้มเหลวเงียบๆ
-            date: record.date,
-            checkOut: fullDateTimeStr,
-            ot: otStr
-        });
     }
 
     saveAndRenderApp();
