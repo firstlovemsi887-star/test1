@@ -1013,7 +1013,26 @@ window.addEventListener('storage', (e) => {
     }
 });
 
+// 🛠️ เยียวยาข้อมูลเก่าที่ค้างมาก่อนตัวแก้บัคนำเข้าข้อมูล (แถวยังไม่มีเวลาออก แต่ไม่มี rawCheckInTime)
+// ให้อัตโนมัติตอนโหลดแอปทุกครั้ง โดยคำนวณจาก checkIn ที่มีอยู่แล้ว ผู้ใช้ไม่ต้องลบ/นำเข้าไฟล์เดิมซ้ำเอง
+function migrateOpenRecordsRawCheckInTime() {
+    let changed = false;
+    attendanceData.forEach(record => {
+        if (record.checkOut === '-' && !record.rawCheckInTime) {
+            const rawMs = parseThaiDateTimeToRawMs(record.checkIn);
+            if (rawMs !== null) {
+                record.rawCheckInTime = rawMs;
+                changed = true;
+            }
+        }
+    });
+    if (changed) {
+        localStorage.setItem('mfg5_attendance', JSON.stringify(attendanceData));
+    }
+}
+
 document.addEventListener("DOMContentLoaded", () => {
+    migrateOpenRecordsRawCheckInTime();
     document.getElementById('employee')?.focus();
     document.getElementById('employeeRestroom')?.focus();
     loadDashboard();
