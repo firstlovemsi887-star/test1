@@ -282,7 +282,15 @@ function renderTable() {
     const searchVal = document.getElementById('search')?.value.toLowerCase() || '';
     listTable.innerHTML = '';
 
-    attendanceData.filter(i => (i.empCode || '').toLowerCase().includes(searchVal)).forEach(item => {
+    const filteredData = attendanceData.filter(i => (i.empCode || '').toLowerCase().includes(searchVal));
+    if (filteredData.length === 0) {
+        listTable.innerHTML = `<tr><td colspan="7" style="text-align: center; color: #94a3b8; padding: 30px;">ไม่พบข้อมูลการสแกน</td></tr>`;
+        updateDashboardApp();
+        showSummary();
+        return;
+    }
+
+    filteredData.forEach(item => {
         const tr = document.createElement('tr');
         const status = item.status || '';
         let statusBadge = status.includes("สาย")
@@ -612,6 +620,10 @@ function renderRestroom() {
     const list = document.getElementById('restroomList');
     if(!list) return;
     list.innerHTML = '';
+    if (restroomData.length === 0) {
+        list.innerHTML = `<tr><td colspan="7" style="text-align: center; color: #94a3b8; padding: 30px;">ไม่พบข้อมูลการออกนอกพื้นที่</td></tr>`;
+        return;
+    }
     const now = Date.now();
     restroomData.forEach(item => {
         let isOver = false;
@@ -642,10 +654,12 @@ function renderRestroom() {
 setInterval(() => { if (document.getElementById('restroomList')) renderRestroom(); }, 15000);
 
 function deleteRestroom(id) {
-    restroomData = restroomData.filter(x => x.id !== id);
-    localStorage.setItem('factoryRestroom', JSON.stringify(restroomData));
-    renderRestroom();
-    scanChannel.postMessage({ type: 'REFRESH_DATA' });
+    showConfirm('ต้องการลบรายการนี้ใช่หรือไม่?', () => {
+        restroomData = restroomData.filter(x => x.id !== id);
+        localStorage.setItem('factoryRestroom', JSON.stringify(restroomData));
+        renderRestroom();
+        scanChannel.postMessage({ type: 'REFRESH_DATA' });
+    });
 }
 
 function exportRestroomExcel() {
