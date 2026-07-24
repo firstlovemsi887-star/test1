@@ -380,6 +380,7 @@ function updateDashboardApp() {
         if (i.date === todayStr) return true;
         return i.rawCheckInTime && (nowMs - i.rawCheckInTime <= SAME_SHIFT_WINDOW_MS);
     });
+    if(document.getElementById('empTotal')) document.getElementById('empTotal').innerText = employeeData.length;
     if(document.getElementById('total')) document.getElementById('total').innerText = todayRecs.length;
     if(document.getElementById('checkin')) document.getElementById('checkin').innerText = todayRecs.filter(i => i.checkIn !== '-').length;
     if(document.getElementById('checkout')) document.getElementById('checkout').innerText = todayRecs.filter(i => i.checkOut !== '-').length;
@@ -685,8 +686,9 @@ function exportExcelMenu() {
         attendanceData.forEach(x => { csv += `${x.empCode},${x.checkIn},${x.checkOut},${x.shift},${x.status},${x.ot}\n`; });
 
         csv += "\n=== รายชื่อพนักงาน ===\n";
-        csv += "รหัสพนักงาน,แผนก\n";
-        employeeData.forEach(e => { csv += `${e.empCode},${e.department}\n`; });
+        csv += "รหัสพนักงาน,แผนก,สถานะวันนี้\n";
+        const csvPresentCodes = getPresentEmpCodesSet();
+        employeeData.forEach(e => { csv += `${e.empCode},${e.department},${csvPresentCodes.has(e.empCode) ? 'มา' : 'ไม่มา'}\n`; });
 
         csv += "\n=== ออกนอกพื้นที่ ===\n";
         csv += "รหัสพนักงาน,สาเหตุ,เวลาออก,เวลากลับ,ระยะเวลา,สถานะ\n";
@@ -702,8 +704,9 @@ function exportExcelMenu() {
     attendanceData.forEach(x => attRows.push([x.empCode, x.checkIn, x.checkOut, x.shift, x.status, x.ot]));
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(attRows), "การลงเวลา");
 
-    const empRows = [["รหัสพนักงาน", "แผนก"]];
-    employeeData.forEach(e => empRows.push([e.empCode, e.department]));
+    const empPresentCodes = getPresentEmpCodesSet();
+    const empRows = [["รหัสพนักงาน", "แผนก", "สถานะวันนี้"]];
+    employeeData.forEach(e => empRows.push([e.empCode, e.department, empPresentCodes.has(e.empCode) ? 'มา' : 'ไม่มา']));
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(empRows), "พนักงาน");
 
     const restRows = [["รหัสพนักงาน", "สาเหตุ", "เวลาออก", "เวลากลับ", "ระยะเวลา", "สถานะ"]];
