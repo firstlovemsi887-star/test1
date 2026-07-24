@@ -1,7 +1,17 @@
 let attendanceData = JSON.parse(localStorage.getItem('mfg5_attendance')) || [];
 let restroomData = JSON.parse(localStorage.getItem('factoryRestroom')) || [];
 let employeeData = JSON.parse(localStorage.getItem('mfg5_employees')) || [];
-const scanChannel = new BroadcastChannel('mfg5_scan_channel');
+// 🛠️ กันพัง: บางเบราว์เซอร์/เว็บวิวในแอป (เช่น เบราว์เซอร์ในตัวแอปแชท) ไม่รองรับ BroadcastChannel
+// ถ้าปล่อยให้ throw ตรงนี้ตั้งแต่ตอนโหลดสคริปต์ โค้ดทั้งไฟล์ที่อยู่หลังบรรทัดนี้จะไม่ถูกรันเลย
+// ทำให้ปุ่มต่างๆ (เช่น เพิ่มพนักงาน) เหมือนกดไม่ได้ผลทั้งที่จริงๆ ไม่เกี่ยวกับฟังก์ชันนั้นเลย
+// ถ้าไม่รองรับ ให้ใช้ stub แทน (แค่ไม่ซิงค์ข้ามแท็บสด แต่ฟีเจอร์หลักยังทำงานปกติ)
+let scanChannel;
+try {
+    scanChannel = new BroadcastChannel('mfg5_scan_channel');
+} catch (e) {
+    console.warn('BroadcastChannel ไม่รองรับในเบราว์เซอร์นี้ การซิงค์ข้ามแท็บสดจะไม่ทำงาน', e);
+    scanChannel = { postMessage() {}, onmessage: null };
+}
 
 function getEmployeeDept(empCode) {
     const e = employeeData.find(x => x.empCode === empCode);
