@@ -246,3 +246,147 @@ tr:hover { background: #fbfcfe; }
 
 .timer-normal { background: #ecfdf5; color: #047857; }
 .timer-over { background: #fef2f2; color: #b91c1c; }
+
+/* 🤖 มาสคอตผู้ช่วย AI มุมซ้ายล่าง */
+.mascot-btn {
+    position: fixed;
+    left: 20px;
+    bottom: 20px;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: linear-gradient(145deg, #0f172a, #334155);
+    color: #ffffff;
+    border: none;
+    font-size: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.3);
+    z-index: 1200;
+    animation: mascotFloat 4s ease-in-out infinite;
+    transition: transform 0.15s ease;
+}
+
+.mascot-btn:hover { transform: scale(1.08); background: linear-gradient(145deg, #1e293b, #475569); }
+
+/* นิ่งอยู่กับที่เกือบตลอดรอบ (0-82%) แล้วขยับน่ารักๆ สั้นๆ ท้ายรอบ แทนที่จะลอยตลอดเวลา
+   ทั้งดูมีชีวิตชีวากว่าการโยกตลอดเวลาแบบเดิม และไม่กวนตาจนคลิกปุ่มยาก */
+@keyframes mascotFloat {
+    0%, 82%, 100% { transform: translateY(0) rotate(0deg); }
+    87% { transform: translateY(-8px) rotate(-6deg); }
+    91% { transform: translateY(0) rotate(5deg); }
+    95% { transform: translateY(-4px) rotate(-3deg); }
+    98% { transform: translateY(0) rotate(0deg); }
+}
+
+.mascot-panel {
+    position: fixed;
+    left: 20px;
+    bottom: 92px;
+    width: 320px;
+    max-width: calc(100vw - 40px);
+    max-height: 440px;
+    background: #ffffff;
+    border-radius: 16px;
+    border: 1px solid var(--border-color);
+    box-shadow: 0 20px 40px -10px rgba(15, 23, 42, 0.25);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    z-index: 1200;
+    animation: mascotPop 0.2s ease-out;
+}
+
+@keyframes mascotPop {
+    from { opacity: 0; transform: translateY(12px) scale(0.96); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.mascot-header {
+    background: var(--primary-color);
+    color: #ffffff;
+    padding: 14px 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.mascot-header span.mascot-emoji { font-size: 18px; margin-right: 6px; }
+
+.mascot-close {
+    background: transparent;
+    border: none;
+    color: #ffffff;
+    font-size: 18px;
+    cursor: pointer;
+    padding: 0 4px;
+}
+
+.mascot-close:hover { background: rgba(255,255,255,0.15); border-radius: 6px; }
+
+.mascot-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    background: #f8fafc;
+}
+
+.mascot-msg {
+    max-width: 88%;
+    padding: 10px 14px;
+    border-radius: 14px;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.mascot-msg-bot {
+    background: #ffffff;
+    border: 1px solid var(--border-color);
+    align-self: flex-start;
+    border-bottom-left-radius: 4px;
+}
+
+.mascot-msg-user {
+    background: var(--primary-color);
+    color: #ffffff;
+    align-self: flex-end;
+    border-bottom-right-radius: 4px;
+}
+
+.mascot-typing { display: flex; gap: 4px; padding: 12px 14px; }
+.mascot-typing span {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: #94a3b8;
+    animation: mascotTypingDot 1s infinite ease-in-out;
+}
+.mascot-typing span:nth-child(2) { animation-delay: 0.15s; }
+.mascot-typing span:nth-child(3) { animation-delay: 0.3s; }
+
+@keyframes mascotTypingDot {
+    0%, 60%, 100% { transform: translateY(0); opacity: 0.5; }
+    30% { transform: translateY(-4px); opacity: 1; }
+}
+
+.mascot-quick {
+    padding: 10px 12px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    border-top: 1px solid var(--border-color);
+    background: #ffffff;
+}
+
+.mascot-quick button {
+    font-size: 12px;
+    padding: 6px 10px;
+    background: #eff6ff;
+    color: #1d4ed8;
+    border-color: #bfdbfe;
+}
