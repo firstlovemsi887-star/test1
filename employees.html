@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MFG5 ระบบสแกนบัตร - จัดการพนักงาน</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h2>👥 จัดการพนักงาน (รหัส + แผนก)</h2>
+            <button onclick="location.href='index.html'" class="btn-secondary">⬅️ กลับหน้าหลัก</button>
+        </div>
+
+        <div class="scan-box">
+            <h3>เพิ่มพนักงานแผนก ATS</h3>
+            <p style="margin: 0 0 10px; color: #64748b; font-size: 14px;">ระบบนี้ใช้เฉพาะแผนก ATS เท่านั้น พนักงานที่เพิ่มทุกคนจะถูกล็อคแผนกเป็น "ATS" อัตโนมัติ ไม่ต้องพิมพ์เอง (กันกรอกผิดกรณีมีคนแผนกอื่นมาเพิ่มข้อมูล)</p>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px;">
+                <input type="text" id="empCodeInput" placeholder="รหัสพนักงาน (6 ตัวอักษร)" maxlength="6" autocomplete="off" style="flex: 1; min-width: 180px; padding: 12px; font-size: 16px;">
+                <button onclick="saveEmployee()" class="btn-success" style="padding: 12px 24px; font-size: 16px;">💾 เพิ่มพนักงาน (แผนก ATS)</button>
+            </div>
+            <div id="employeeMessage" class="message-box">กรอกรหัสพนักงานแล้วกดเพิ่ม — แผนกถูกล็อคเป็น "ATS" ให้อัตโนมัติ</div>
+        </div>
+
+        <div class="action-bar">
+            <input type="text" id="empSearch" placeholder="ค้นหารหัส/แผนก..." onkeyup="renderEmployees()">
+            <button onclick="exportEmployeesExcel()" class="btn-excel">📊 ส่งออกรายชื่อ (CSV)</button>
+            <input type="file" id="importEmployeeFile" accept=".csv,.xlsx,.xls" style="display:none" onchange="importEmployees(event)">
+            <button onclick="document.getElementById('importEmployeeFile').click()" class="btn-import">📥 นำเข้าข้อมูล</button>
+            <button onclick="deleteSelectedEmployees()" class="btn-danger">🗑️ ลบที่เลือก</button>
+            <button onclick="deleteAllEmployees()" class="btn-danger">🗑️ ลบพนักงานทั้งหมด</button>
+        </div>
+        <p style="margin: 8px 0 0; color: #94a3b8; font-size: 13px;">นำเข้าจากไฟล์ CSV/Excel: อ่านรหัสพนักงานจากคอลัมน์ A (คอลัมน์แรกสุด) แถวละ 1 รหัส ทุกคนที่นำเข้าจะถูกล็อคแผนกเป็น "ATS" เหมือนเพิ่มทีละคน — ปุ่ม "ลบพนักงานทั้งหมด" ลบเฉพาะรายชื่อพนักงานหน้านี้ ไม่เกี่ยวกับข้อมูลการลงเวลา/ล้างระบบที่หน้าอื่น</p>
+
+        <div class="table-container" style="margin-top: 20px;">
+            <table>
+                <thead>
+                    <tr>
+                        <th><input type="checkbox" id="selectAllEmp" onchange="toggleSelectAllEmployees(this)"></th>
+                        <th>รหัสพนักงาน</th>
+                        <th>แผนก</th>
+                        <th>จัดการ</th>
+                    </tr>
+                </thead>
+                <tbody id="employeeList">
+                    <tr><td colspan="4" style="text-align: center; color: #94a3b8; padding: 30px;">ไม่พบข้อมูลพนักงาน</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            renderEmployees();
+            document.getElementById('empCodeInput')?.focus();
+        });
+    </script>
+</body>
+</html>
