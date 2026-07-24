@@ -823,7 +823,32 @@ function toggleSelectAllEmployees(checkbox) {
     document.querySelectorAll('.emp-select').forEach(cb => { cb.checked = checkbox.checked; });
 }
 
+// 🛠️ สรุปจำนวนพนักงานทั้งหมด/มาทำงานวันนี้/ไม่มาวันนี้ ที่หน้าจัดการพนักงาน — "มาวันนี้" ใช้เกณฑ์เดียวกับ
+// การ์ดสรุปหน้าสแกน (นับรวมกะดึกที่ยังไม่สแกนออกและยังอยู่ในช่วงกะเดียวกัน ไม่ใช่แค่วันที่ตรงกันเป๊ะๆ)
+function updateEmployeeStats() {
+    const totalEl = document.getElementById('empTotalCount');
+    const presentEl = document.getElementById('empPresentCount');
+    const absentEl = document.getElementById('empAbsentCount');
+    if (!totalEl && !presentEl && !absentEl) return;
+
+    const todayStr = new Date().toLocaleDateString('th-TH');
+    const nowMs = Date.now();
+    const presentCodes = new Set(
+        attendanceData.filter(i => {
+            if (i.date === todayStr) return true;
+            return i.checkOut === '-' && i.rawCheckInTime && (nowMs - i.rawCheckInTime <= SAME_SHIFT_WINDOW_MS);
+        }).map(i => i.empCode)
+    );
+    const total = employeeData.length;
+    const present = employeeData.filter(e => presentCodes.has(e.empCode)).length;
+
+    if (totalEl) totalEl.innerText = total;
+    if (presentEl) presentEl.innerText = present;
+    if (absentEl) absentEl.innerText = total - present;
+}
+
 function renderEmployees() {
+    updateEmployeeStats();
     const list = document.getElementById('employeeList');
     if (!list) return;
     const searchVal = document.getElementById('empSearch')?.value.toLowerCase() || '';
