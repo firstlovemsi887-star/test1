@@ -121,7 +121,7 @@ function loadDashboard() {
     let sumLate = document.getElementById("sumLate");
     let sumOT = document.getElementById("sumOT");
 
-    if(sumTotal) sumTotal.innerHTML = new Set(attendanceData.map(x => x.empCode)).size;
+    if(sumTotal) sumTotal.innerHTML = employeeData.length;
     if(sumIn) sumIn.innerHTML = attendanceData.filter(x => x.checkIn && x.checkIn !== '-').length;
     if(sumLate) sumLate.innerHTML = attendanceData.filter(x => x.status && x.status.includes("สาย")).length;
     if(sumOT) sumOT.innerHTML = attendanceData.filter(x => x.ot && x.ot === "ทำ").length;
@@ -823,22 +823,27 @@ function toggleSelectAllEmployees(checkbox) {
     document.querySelectorAll('.emp-select').forEach(cb => { cb.checked = checkbox.checked; });
 }
 
-// 🛠️ สรุปจำนวนพนักงานทั้งหมด/มาทำงานวันนี้/ไม่มาวันนี้ ที่หน้าจัดการพนักงาน — "มาวันนี้" ใช้เกณฑ์เดียวกับ
-// การ์ดสรุปหน้าสแกน (นับรวมกะดึกที่ยังไม่สแกนออกและยังอยู่ในช่วงกะเดียวกัน ไม่ใช่แค่วันที่ตรงกันเป๊ะๆ)
+// 🛠️ ใครถือว่า "มาวันนี้" ใช้เกณฑ์เดียวกับการ์ดสรุปหน้าสแกน (นับรวมกะดึกที่ยังไม่สแกนออกและยังอยู่ในช่วงกะเดียวกัน
+// ไม่ใช่แค่วันที่ตรงกันเป๊ะๆ) ใช้ร่วมกันทั้งการ์ดสรุปและคอลัมน์สถานะรายแถวในตาราง
+function getPresentEmpCodesSet() {
+    const todayStr = new Date().toLocaleDateString('th-TH');
+    const nowMs = Date.now();
+    return new Set(
+        attendanceData.filter(i => {
+            if (i.date === todayStr) return true;
+            return i.checkOut === '-' && i.rawCheckInTime && (nowMs - i.rawCheckInTime <= SAME_SHIFT_WINDOW_MS);
+        }).map(i => i.empCode)
+    );
+}
+
+// สรุปจำนวนพนักงานทั้งหมด/มาทำงานวันนี้/ไม่มาวันนี้ ที่หน้าจัดการพนักงาน
 function updateEmployeeStats() {
     const totalEl = document.getElementById('empTotalCount');
     const presentEl = document.getElementById('empPresentCount');
     const absentEl = document.getElementById('empAbsentCount');
     if (!totalEl && !presentEl && !absentEl) return;
 
-    const todayStr = new Date().toLocaleDateString('th-TH');
-    const nowMs = Date.now();
-    const presentCodes = new Set(
-        attendanceData.filter(i => {
-            if (i.date === todayStr) return true;
-            return i.checkOut === '-' && i.rawCheckInTime && (nowMs - i.rawCheckInTime <= SAME_SHIFT_WINDOW_MS);
-        }).map(i => i.empCode)
-    );
+    const presentCodes = getPresentEmpCodesSet();
     const total = employeeData.length;
     const present = employeeData.filter(e => presentCodes.has(e.empCode)).length;
 
@@ -860,16 +865,19 @@ function renderEmployees() {
         e.empCode.toLowerCase().includes(searchVal) || (e.department || '').toLowerCase().includes(searchVal)
     );
     if (filtered.length === 0) {
-        list.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #94a3b8; padding: 30px;">ไม่พบข้อมูลพนักงาน</td></tr>`;
+        list.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #94a3b8; padding: 30px;">ไม่พบข้อมูลพนักงาน</td></tr>`;
         return;
     }
 
+    const presentCodes = getPresentEmpCodesSet();
     filtered.forEach(e => {
+        const isPresent = presentCodes.has(e.empCode);
         let tr = document.createElement('tr');
         tr.innerHTML = `
             <td><input type="checkbox" class="emp-select" value="${e.empCode}"></td>
             <td><b>${escapeHtml(e.empCode)}</b></td>
             <td>${escapeHtml(e.department)}</td>
+            <td>${isPresent ? '<span style="color: #16a34a; font-weight: 700;">✅ มา</span>' : '<span style="color: #dc2626; font-weight: 700;">❌ ไม่มา</span>'}</td>
             <td>
                 <button onclick="deleteEmployee('${e.empCode}')" class="btn-danger">ลบ</button>
             </td>
