@@ -909,18 +909,12 @@ function updateEmployeeStats() {
     if (absentEl) absentEl.innerText = total - present;
 }
 
-function renderEmployees() {
-    updateEmployeeStats();
-    const list = document.getElementById('employeeList');
-    if (!list) return;
+// 🛠️ ใช้ร่วมกันทั้งตอนแสดงตารางและตอนส่งออกไฟล์ เพื่อให้ผลลัพธ์ตรงกับสิ่งที่กรอง/ค้นหาอยู่บนหน้าจอเป๊ะๆ
+function getFilteredEmployeeList() {
     const searchVal = document.getElementById('empSearch')?.value.toLowerCase() || '';
     const statusFilter = document.getElementById('empStatusFilter')?.value || 'all';
-    list.innerHTML = '';
-    const selectAll = document.getElementById('selectAllEmp');
-    if (selectAll) selectAll.checked = false;
-
     const presentCodes = getPresentEmpCodesSet();
-    const filtered = employeeData.filter(e => {
+    return employeeData.filter(e => {
         const matchesSearch = e.empCode.toLowerCase().includes(searchVal) || (e.department || '').toLowerCase().includes(searchVal);
         if (!matchesSearch) return false;
         const isPresent = presentCodes.has(e.empCode);
@@ -928,11 +922,23 @@ function renderEmployees() {
         if (statusFilter === 'absent') return !isPresent;
         return true;
     });
+}
+
+function renderEmployees() {
+    updateEmployeeStats();
+    const list = document.getElementById('employeeList');
+    if (!list) return;
+    list.innerHTML = '';
+    const selectAll = document.getElementById('selectAllEmp');
+    if (selectAll) selectAll.checked = false;
+
+    const filtered = getFilteredEmployeeList();
     if (filtered.length === 0) {
         list.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #94a3b8; padding: 30px;">ไม่พบข้อมูลพนักงาน</td></tr>`;
         return;
     }
 
+    const presentCodes = getPresentEmpCodesSet();
     filtered.forEach(e => {
         const isPresent = presentCodes.has(e.empCode);
         let tr = document.createElement('tr');
@@ -951,8 +957,12 @@ function renderEmployees() {
 
 function exportEmployeesExcel() {
     if (employeeData.length === 0) { alert("ไม่มีข้อมูล"); return; }
-    let csv = "﻿รหัสพนักงาน,แผนก\n";
-    employeeData.forEach(e => { csv += `${e.empCode},${e.department}\n`; });
+    // 🛠️ ส่งออกตามที่กรอง/ค้นหาอยู่บนตารางตอนนี้ (ไม่ใช่ทั้งหมดเสมอ) ให้ตรงกับสิ่งที่เห็นบนหน้าจอ
+    const filtered = getFilteredEmployeeList();
+    if (filtered.length === 0) { alert("ไม่มีข้อมูลตามตัวกรอง/คำค้นหาปัจจุบัน"); return; }
+    const presentCodes = getPresentEmpCodesSet();
+    let csv = "﻿รหัสพนักงาน,แผนก,สถานะวันนี้\n";
+    filtered.forEach(e => { csv += `${e.empCode},${e.department},${presentCodes.has(e.empCode) ? 'มา' : 'ไม่มา'}\n`; });
     downloadCSV(csv, `employee_list_${new Date().toISOString().slice(0, 10)}.csv`);
 }
 
