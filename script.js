@@ -876,7 +876,6 @@ function renderEmployees() {
         return;
     }
 
-    const presentCodes = getPresentEmpCodesSet();
     filtered.forEach(e => {
         const isPresent = presentCodes.has(e.empCode);
         let tr = document.createElement('tr');
