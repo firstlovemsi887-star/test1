@@ -370,11 +370,15 @@ function renderTable() {
 // พอข้ามวันไปแล้วการ์ดสรุปจะไม่นับคนกลุ่มนี้เลย ทั้งที่ยังทำงานอยู่จริงและยังเห็นแถวอยู่ในตารางด้านล่างตามปกติ
 // ตอนนี้นับรวมคนที่ยังไม่สแกนออกและยังอยู่ในช่วงกะเดียวกัน (SAME_SHIFT_WINDOW_MS) ด้วย ไม่ใช่แค่คนที่วันที่ตรงกับวันนี้เป๊ะๆ
 function updateDashboardApp() {
+    // 🛠️ [แก้บัค] เดิมเงื่อนไข "ยังอยู่ในช่วงกะ" ใช้ได้แค่กับแถวที่ยังไม่สแกนออก (checkOut === '-') พอสแกนออกจริง
+    // (โดยเฉพาะกะดึกที่ข้ามเที่ยงคืน วันที่ในแถวยังเป็นเมื่อวาน) แถวนั้นจะหลุดจากเงื่อนไขทั้งสองข้อทันที (ไม่ตรง
+    // วันที่ปัจจุบัน และ checkOut ก็ไม่ใช่ '-' แล้ว) ทำให้การ์ดสรุปทั้งหมดของคนนั้นหายไปทั้งที่เพิ่งสแกนออกจริงๆ
+    // จึงต้องเอาเงื่อนไข checkOut === '-' ออก ให้ยึดแค่ "เพิ่งเข้างานมาไม่เกิน 20 ชม." เป็นตัวตัดสินแทน ไม่ว่าจะออกแล้วหรือไม่
     const todayStr = new Date().toLocaleDateString('th-TH');
     const nowMs = Date.now();
     const todayRecs = attendanceData.filter(i => {
         if (i.date === todayStr) return true;
-        return i.checkOut === '-' && i.rawCheckInTime && (nowMs - i.rawCheckInTime <= SAME_SHIFT_WINDOW_MS);
+        return i.rawCheckInTime && (nowMs - i.rawCheckInTime <= SAME_SHIFT_WINDOW_MS);
     });
     if(document.getElementById('total')) document.getElementById('total').innerText = todayRecs.length;
     if(document.getElementById('checkin')) document.getElementById('checkin').innerText = todayRecs.filter(i => i.checkIn !== '-').length;
@@ -883,12 +887,14 @@ function toggleSelectAllEmployees(checkbox) {
 // 🛠️ ใครถือว่า "มาวันนี้" ใช้เกณฑ์เดียวกับการ์ดสรุปหน้าสแกน (นับรวมกะดึกที่ยังไม่สแกนออกและยังอยู่ในช่วงกะเดียวกัน
 // ไม่ใช่แค่วันที่ตรงกันเป๊ะๆ) ใช้ร่วมกันทั้งการ์ดสรุปและคอลัมน์สถานะรายแถวในตาราง
 function getPresentEmpCodesSet() {
+    // 🛠️ [แก้บัค] เหมือน updateDashboardApp() — ต้องนับแถวที่ "เพิ่งเข้างานมาไม่เกิน 20 ชม." ไม่ว่าจะสแกนออกแล้ว
+    // หรือยัง ไม่งั้นพอกะดึกข้ามเที่ยงคืนแล้วสแกนออก คนนั้นจะเด้งจาก "มา" เป็น "ไม่มา" ทันทีทั้งที่เพิ่งออกงานจริง
     const todayStr = new Date().toLocaleDateString('th-TH');
     const nowMs = Date.now();
     return new Set(
         attendanceData.filter(i => {
             if (i.date === todayStr) return true;
-            return i.checkOut === '-' && i.rawCheckInTime && (nowMs - i.rawCheckInTime <= SAME_SHIFT_WINDOW_MS);
+            return i.rawCheckInTime && (nowMs - i.rawCheckInTime <= SAME_SHIFT_WINDOW_MS);
         }).map(i => i.empCode)
     );
 }
