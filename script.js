@@ -1,7 +1,17 @@
 let attendanceData = JSON.parse(localStorage.getItem('mfg5_attendance')) || [];
 let restroomData = JSON.parse(localStorage.getItem('factoryRestroom')) || [];
 let employeeData = JSON.parse(localStorage.getItem('mfg5_employees')) || [];
-const scanChannel = new BroadcastChannel('mfg5_scan_channel');
+// 🛠️ กันพัง: บางเบราว์เซอร์/เว็บวิวในแอป (เช่น เบราว์เซอร์ในตัวแอปแชท) ไม่รองรับ BroadcastChannel
+// ถ้าปล่อยให้ throw ตรงนี้ตั้งแต่ตอนโหลดสคริปต์ โค้ดทั้งไฟล์ที่อยู่หลังบรรทัดนี้จะไม่ถูกรันเลย
+// ทำให้ปุ่มต่างๆ (เช่น เพิ่มพนักงาน) เหมือนกดไม่ได้ผลทั้งที่จริงๆ ไม่เกี่ยวกับฟังก์ชันนั้นเลย
+// ถ้าไม่รองรับ ให้ใช้ stub แทน (แค่ไม่ซิงค์ข้ามแท็บสด แต่ฟีเจอร์หลักยังทำงานปกติ)
+let scanChannel;
+try {
+    scanChannel = new BroadcastChannel('mfg5_scan_channel');
+} catch (e) {
+    console.warn('BroadcastChannel ไม่รองรับในเบราว์เซอร์นี้ การซิงค์ข้ามแท็บสดจะไม่ทำงาน', e);
+    scanChannel = { postMessage() {}, onmessage: null };
+}
 
 function getEmployeeDept(empCode) {
     const e = employeeData.find(x => x.empCode === empCode);
@@ -113,7 +123,6 @@ function loadDashboard() {
     if(sumOT) sumOT.innerHTML = attendanceData.filter(x => x.ot && x.ot === "ทำ").length;
 }
 
-let isScanning = false;
 let currentShift = 'กะเช้า';
 
 function convertThaiToEng(str) {
@@ -148,7 +157,6 @@ function setShift(shiftName, btnElement) {
 function handleScan(event) {
     if (event.key === 'Enter' || event.keyCode === 13 || event.key === 'Tab') {
         event.preventDefault();
-        if (isScanning) return;
         const input = document.getElementById('employee');
         if(!input) return;
         let rawCode = input.value.trim();
@@ -169,10 +177,14 @@ function handleScan(event) {
             return;
         }
 
-        isScanning = true;
+        // 🛠️ [แก้บัค] เดิมล็อคห้ามสแกนใหม่ทั้งหน้าจอ 200ms หลังทุกครั้งที่สแกน (ไม่ใช่แค่คนเดิม) ทำให้ถ้ามีคิว
+        // สแกนต่อกันเร็ว (เช่นช่วงเข้ากะพร้อมกันหลายร้อย/พันคน) รหัสของคนถัดไปที่ยิงมาในช่วง 200ms นั้นจะถูกทิ้งเงียบๆ
+        // ไม่มีเสียงเตือน ไม่มีข้อความ เหมือนสแกนไม่ติด ทั้งที่ processAttendance ทำงานเสร็จตั้งแต่ก่อนจะคืนค่าฟังก์ชันแล้ว
+        // (ไม่มีการ await ใดๆ ในนี้อีกต่อไปหลังจากตัดระบบ cloud ออก) จึงไม่จำเป็นต้องหน่วงเวลาแบบนี้เลย
+        // การกันสแกนซ้ำของ "คนเดิม" ในเวลาไล่เลี่ยกัน มี lastScanTimeMap (500ms ต่อรหัส) ป้องกันอยู่แล้วในตัว processAttendance
         processAttendance(empCode);
         input.value = '';
-        setTimeout(() => { isScanning = false; input.focus(); }, 200);
+        input.focus();
     }
 }
 
