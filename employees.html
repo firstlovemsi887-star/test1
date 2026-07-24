@@ -37,7 +37,7 @@
                 <option value="present">✅ มาทำงาน</option>
                 <option value="absent">❌ ไม่มา</option>
             </select>
-            <button onclick="exportEmployeesExcel()" class="btn-excel">📊 ส่งออกรายชื่อ (CSV)</button>
+            <button onclick="exportEmployeesExcel()" class="btn-excel" title="ส่งออกเฉพาะรายชื่อที่ตรงกับตัวกรอง/คำค้นหาปัจจุบัน">📊 ส่งออกรายชื่อ (ตามตัวกรอง)</button>
             <input type="file" id="importEmployeeFile" accept=".csv,.xlsx,.xls" style="display:none" onchange="importEmployees(event)">
             <button onclick="document.getElementById('importEmployeeFile').click()" class="btn-import">📥 นำเข้าข้อมูล</button>
             <button onclick="deleteSelectedEmployees()" class="btn-danger">🗑️ ลบที่เลือก</button>
