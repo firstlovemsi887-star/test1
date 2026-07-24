@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MFG5 ระบบสแกนบัตร</title>
     <link rel="stylesheet" href="style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         body { background: radial-gradient(circle at top left, #1e293b, #0f172a 55%); }
         .container { max-width: 1100px; background: transparent; box-shadow: none; border: none; padding: 20px; }
@@ -153,7 +154,7 @@
         </div>
 
         <div class="home-utility-bar">
-            <button onclick="exportExcelMenu()" class="btn-excel">📊 ส่งออกข้อมูลทั้งหมด (CSV)</button>
+            <button onclick="exportExcelMenu()" class="btn-excel" title="รวมข้อมูลลงเวลา/พนักงาน/ออกนอกพื้นที่ไว้ในไฟล์ Excel เดียว แยกเป็นคนละชีต">📊 ส่งออกข้อมูลทั้งหมด (รวมทุกหน้าในไฟล์เดียว)</button>
             <button onclick="confirmResetData()" class="btn-danger">🗑️ ล้างข้อมูลระบบ</button>
         </div>
     </div>
