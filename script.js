@@ -667,7 +667,52 @@ async function importExcel(event) {
 }
 
 function exportSummary() { exportExcel(); }
-function exportExcelMenu() { exportExcel(); }
+
+// 📊 ปุ่ม "ส่งออกข้อมูลทั้งหมด" บนหน้าหลัก รวมข้อมูลทุกหน้า (ลงเวลา/พนักงาน/ออกนอกพื้นที่) ไว้ในไฟล์เดียว
+// เป็นไฟล์ Excel (.xlsx) โดยแยกแต่ละหน้าเป็นคนละชีตในไฟล์เดียวกัน ถ้าโหลดไลบรารี XLSX ไม่ได้ (ไม่มีเน็ต)
+// ให้ตกไปเป็นไฟล์ CSV รวม (คั่นแต่ละส่วนด้วยหัวข้อ) แทน เพื่อให้ยังใช้งานได้แม้ออฟไลน์
+function exportExcelMenu() {
+    if (attendanceData.length === 0 && employeeData.length === 0 && restroomData.length === 0) {
+        alert("ไม่มีข้อมูล");
+        return;
+    }
+
+    const dateSuffix = new Date().toISOString().slice(0, 10);
+
+    if (typeof XLSX === 'undefined') {
+        let csv = "=== ข้อมูลการลงเวลา ===\n";
+        csv += "﻿รหัสพนักงาน,วันที่/เวลาเข้า,วันที่/เวลาออก,กะ,สถานะ,OT\n";
+        attendanceData.forEach(x => { csv += `${x.empCode},${x.checkIn},${x.checkOut},${x.shift},${x.status},${x.ot}\n`; });
+
+        csv += "\n=== รายชื่อพนักงาน ===\n";
+        csv += "รหัสพนักงาน,แผนก\n";
+        employeeData.forEach(e => { csv += `${e.empCode},${e.department}\n`; });
+
+        csv += "\n=== ออกนอกพื้นที่ ===\n";
+        csv += "รหัสพนักงาน,สาเหตุ,เวลาออก,เวลากลับ,ระยะเวลา,สถานะ\n";
+        restroomData.forEach(r => { csv += `${r.empCode},${r.reason},${r.startTime},${r.returnTime},${r.duration},${r.status}\n`; });
+
+        downloadCSV(csv, `mfg5_ข้อมูลทั้งหมด_${dateSuffix}.csv`);
+        return;
+    }
+
+    const wb = XLSX.utils.book_new();
+
+    const attRows = [["รหัสพนักงาน", "วันที่/เวลาเข้า", "วันที่/เวลาออก", "กะ", "สถานะ", "OT"]];
+    attendanceData.forEach(x => attRows.push([x.empCode, x.checkIn, x.checkOut, x.shift, x.status, x.ot]));
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(attRows), "การลงเวลา");
+
+    const empRows = [["รหัสพนักงาน", "แผนก"]];
+    employeeData.forEach(e => empRows.push([e.empCode, e.department]));
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(empRows), "พนักงาน");
+
+    const restRows = [["รหัสพนักงาน", "สาเหตุ", "เวลาออก", "เวลากลับ", "ระยะเวลา", "สถานะ"]];
+    restroomData.forEach(r => restRows.push([r.empCode, r.reason, r.startTime, r.returnTime, r.duration, r.status]));
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(restRows), "ออกนอกพื้นที่");
+
+    XLSX.writeFile(wb, `mfg5_ข้อมูลทั้งหมด_${dateSuffix}.xlsx`);
+}
+
 function confirmResetData() { clearData(); }
 
 function downloadCSV(csv, filename) {
