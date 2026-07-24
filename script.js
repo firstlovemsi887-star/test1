@@ -988,4 +988,100 @@ document.addEventListener("DOMContentLoaded", () => {
     showSummary();
     renderRestroom();
     renderDisplayTable();
+    initMascot();
 });
+
+// 🤖 มาสคอตผู้ช่วย AI มุมซ้ายล่าง — ตอบคำถามที่พบบ่อยของแอปนี้แบบออฟไลน์ล้วนๆ (ไม่มีการเรียก AI จริงผ่านเน็ต)
+// เพราะเว็บนี้เป็นหน้า static ไม่มี backend ถ้าฝัง API key ของ AI จริงไว้ในโค้ดฝั่งเว็บ ใครก็เปิดดู source แล้วขโมย key ไปได้ทันที
+const MASCOT_FAQ = [
+    { q: 'วิธีสแกนบัตร', a: 'เลือกกะ (เช้า/ดึก) ที่หน้าแรกก่อน แล้วยิงบาร์โค้ดหรือพิมพ์รหัสพนักงาน 6 ตัวแล้วกด Enter ครับ 🟢 สแกนครั้งแรก = เข้างาน 🔴 สแกนครั้งที่ 2 = ออกงาน/ยืนยัน OT' },
+    { q: 'สแกนไม่ติด ทำไง', a: 'เช็ค 2 อย่างครับ 1) รหัสนี้ต้องถูกเพิ่มไว้ที่หน้า "👥 จัดการพนักงาน" ก่อน ไม่งั้นจะขึ้น "คุณไม่ได้อยู่ ATS" 2) ถ้าเพิ่มแล้วยังไม่ติด ลองรีเฟรชแบบไม่ใช้แคช (Ctrl+F5 หรือ Cmd+Shift+R) เผื่อเบราว์เซอร์ยังเก็บเวอร์ชันเก่าอยู่' },
+    { q: 'เพิ่มพนักงานยังไง', a: 'ไปที่เมนู 👥 จัดการพนักงาน พิมพ์รหัส 6 ตัวแล้วกด "เพิ่มพนักงาน" ได้เลย ทุกคนจะถูกล็อคแผนกเป็น ATS อัตโนมัติ หรือถ้ามีรายชื่อเยอะ ใช้ปุ่ม "นำเข้าข้อมูล" อ่านจากไฟล์ CSV/Excel คอลัมน์ A ได้ครับ' },
+    { q: 'ข้อมูลหายไหม เก็บไว้ที่ไหน', a: 'ข้อมูลเก็บไว้ใน localStorage ของเบราว์เซอร์เครื่องนี้เท่านั้น ไม่มี cloud กลาง ปิดแท็บ/ปิดเครื่องแล้วเปิดใหม่ข้อมูลไม่หาย แต่ถ้าล้าง cache เบราว์เซอร์หรือเปิดโหมด Incognito ข้อมูลจะหายนะครับ แนะนำกด "ส่งออกรายงาน (CSV)" สำรองไว้เป็นระยะ' },
+    { q: 'ล้างข้อมูลยังไง', a: 'ปุ่ม "ล้างข้อมูล" ที่หน้าสแกนจะล้างเฉพาะข้อมูล**ลงเวลา**เท่านั้น ไม่กระทบรายชื่อพนักงาน ถ้าจะลบรายชื่อพนักงานต้องไปที่หน้า "จัดการพนักงาน" แล้วใช้ปุ่ม "ลบที่เลือก" หรือ "ลบพนักงานทั้งหมด" แยกต่างหากครับ' },
+    { q: 'ออกนอกพื้นที่/ห้องน้ำใช้ยังไง', a: 'ไปที่เมนู 🚻 ออกนอกพื้นที่ เลือกสาเหตุก่อน แล้วยิงบัตรตอนออก กับยิงรหัสเดิมซ้ำอีกทีตอนกลับเข้ามา ระบบจะจับเวลาและแจ้งเตือนถ้าเกินเวลาที่กำหนดให้อัตโนมัติครับ' },
+];
+
+function initMascot() {
+    if (document.getElementById('mascotBtn')) return; // กันฉีดซ้ำถ้าถูกเรียกมากกว่า 1 ครั้ง
+
+    const btn = document.createElement('button');
+    btn.id = 'mascotBtn';
+    btn.className = 'mascot-btn';
+    btn.title = 'น้องเอทีเอส (ATS) - ผู้ช่วย MFG5';
+    btn.innerHTML = '🤖';
+    document.body.appendChild(btn);
+
+    let panel = null;
+    let bodyEl = null;
+
+    function openPanel() {
+        if (panel) return;
+        panel = document.createElement('div');
+        panel.className = 'mascot-panel';
+        panel.innerHTML = `
+            <div class="mascot-header">
+                <div><span class="mascot-emoji">🤖</span>น้องเอทีเอส (ATS)</div>
+                <button class="mascot-close" id="mascotCloseBtn">✕</button>
+            </div>
+            <div class="mascot-body" id="mascotBody"></div>
+            <div class="mascot-quick" id="mascotQuick"></div>
+        `;
+        document.body.appendChild(panel);
+        bodyEl = document.getElementById('mascotBody');
+
+        addBotMessage('สวัสดีครับ! ผมชื่อ "น้องเอทีเอส" ผู้ช่วยของระบบ MFG5 🎫 เลือกหัวข้อด้านล่างได้เลยครับ');
+        renderQuickReplies();
+
+        document.getElementById('mascotCloseBtn').onclick = closePanel;
+    }
+
+    function closePanel() {
+        if (panel) { panel.remove(); panel = null; bodyEl = null; }
+    }
+
+    function addBotMessage(text) {
+        const el = document.createElement('div');
+        el.className = 'mascot-msg mascot-msg-bot';
+        el.innerText = text;
+        bodyEl.appendChild(el);
+        bodyEl.scrollTop = bodyEl.scrollHeight;
+    }
+
+    function addUserMessage(text) {
+        const el = document.createElement('div');
+        el.className = 'mascot-msg mascot-msg-user';
+        el.innerText = text;
+        bodyEl.appendChild(el);
+        bodyEl.scrollTop = bodyEl.scrollHeight;
+    }
+
+    function renderQuickReplies() {
+        const quick = document.getElementById('mascotQuick');
+        quick.innerHTML = '';
+        MASCOT_FAQ.forEach((item, idx) => {
+            const b = document.createElement('button');
+            b.innerText = item.q;
+            b.onclick = () => askFaq(idx);
+            quick.appendChild(b);
+        });
+    }
+
+    function askFaq(idx) {
+        const item = MASCOT_FAQ[idx];
+        addUserMessage(item.q);
+
+        const typing = document.createElement('div');
+        typing.className = 'mascot-msg mascot-msg-bot mascot-typing';
+        typing.innerHTML = '<span></span><span></span><span></span>';
+        bodyEl.appendChild(typing);
+        bodyEl.scrollTop = bodyEl.scrollHeight;
+
+        setTimeout(() => {
+            typing.remove();
+            addBotMessage(item.a);
+        }, 500); // หน่วงสั้นๆ ให้ดูมีชีวิตชีวาเหมือนกำลังพิมพ์ตอบ
+    }
+
+    btn.onclick = () => { panel ? closePanel() : openPanel(); };
+}
