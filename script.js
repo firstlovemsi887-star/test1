@@ -18,6 +18,10 @@ function getEmployeeDept(empCode) {
     return e ? e.department : '';
 }
 
+// 🛠️ ใช้ร่วมกันระหว่าง processAttendance (ตัดสินว่าสแกนครั้งที่ 2 คือ "ยืนยัน OT" ไหม) และแดชบอร์ด
+// (นับว่าใครยังทำงานอยู่จริง) — 20 ชม. ครอบคลุมกะ + ช่วง OT แต่ไม่ข้ามไปกะถัดไป
+const SAME_SHIFT_WINDOW_MS = 20 * 60 * 60 * 1000;
+
 // 🛑 ตัวแปรสำหรับจำกัดเวลาการสแกนซ้ำ (Debounce Map)
 let lastScanTimeMap = {};
 
@@ -228,7 +232,6 @@ function processAttendance(empCode) {
     // 🛠️ เพราะคนไม่ทำ OT ไม่สแกนขาออก checkOut '-' คือสถานะปกติตลอดไปสำหรับวันนั้น ไม่ใช่ข้อผิดพลาด
     // สแกนครั้งที่ 2 ของพนักงานคนเดิมจะถือเป็น "ยืนยัน OT" ก็ต่อเมื่อยังอยู่ในช่วงกะเดียวกัน (เช็คจากเวลาที่ผ่านไปจริง
     // ไม่ใช่วันที่ตามปฏิทิน เพราะกะดึกข้ามเที่ยงคืน) ถ้าพ้นช่วงนี้ไปแล้วให้ถือเป็นการสแกนเข้างานของกะ/วันใหม่เสมอ
-    const SAME_SHIFT_WINDOW_MS = 20 * 60 * 60 * 1000; // 20 ชม. ครอบคลุมกะ + ช่วง OT แต่ไม่ข้ามไปกะถัดไป
     const openRecord = attendanceData.find(item => item.empCode === empCode && item.checkOut === '-');
     const isOtConfirmScan = openRecord && openRecord.rawCheckInTime && (currentTime - openRecord.rawCheckInTime <= SAME_SHIFT_WINDOW_MS);
 
@@ -353,9 +356,16 @@ function renderTable() {
     showSummary();
 }
 
+// 🛠️ [แก้บัค] เดิมนับ "วันนี้" จากวันที่ตามปฏิทินตรงๆ พอกะดึกข้ามเที่ยงคืน (เช่นเข้างาน 20:xx ของเมื่อวาน ยังไม่สแกนออก)
+// พอข้ามวันไปแล้วการ์ดสรุปจะไม่นับคนกลุ่มนี้เลย ทั้งที่ยังทำงานอยู่จริงและยังเห็นแถวอยู่ในตารางด้านล่างตามปกติ
+// ตอนนี้นับรวมคนที่ยังไม่สแกนออกและยังอยู่ในช่วงกะเดียวกัน (SAME_SHIFT_WINDOW_MS) ด้วย ไม่ใช่แค่คนที่วันที่ตรงกับวันนี้เป๊ะๆ
 function updateDashboardApp() {
     const todayStr = new Date().toLocaleDateString('th-TH');
-    const todayRecs = attendanceData.filter(i => i.date === todayStr);
+    const nowMs = Date.now();
+    const todayRecs = attendanceData.filter(i => {
+        if (i.date === todayStr) return true;
+        return i.checkOut === '-' && i.rawCheckInTime && (nowMs - i.rawCheckInTime <= SAME_SHIFT_WINDOW_MS);
+    });
     if(document.getElementById('total')) document.getElementById('total').innerText = todayRecs.length;
     if(document.getElementById('checkin')) document.getElementById('checkin').innerText = todayRecs.filter(i => i.checkIn !== '-').length;
     if(document.getElementById('checkout')) document.getElementById('checkout').innerText = todayRecs.filter(i => i.checkOut !== '-').length;
