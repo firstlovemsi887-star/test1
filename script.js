@@ -199,6 +199,16 @@ function processAttendance(empCode) {
     const currentTime = now.getTime();
     const messageBox = document.getElementById('message');
 
+    // 🛑 อนุญาตให้เฉพาะรหัสที่เพิ่มไว้ในหน้า "จัดการพนักงาน" เท่านั้นที่สแกนเข้างานได้
+    if (!getEmployeeDept(empCode)) {
+        playBeep('warning');
+        if (messageBox) {
+            messageBox.innerText = `⚠️ [${empCode}] คุณไม่ได้อยู่ ATS`;
+            messageBox.style.color = '#d32f2f';
+        }
+        return;
+    }
+
     // 🛑 ป้องกันสแกนซ้ำภายใน 0.5 วินาที (500 มิลลิวินาที)
     if (lastScanTimeMap[empCode] && (currentTime - lastScanTimeMap[empCode] < 500)) {
         playBeep('warning');
@@ -604,6 +614,16 @@ function handleRestroomScan(event) {
             playBeep('warning');
             const msg = document.getElementById('restroomMessage');
             if(msg) msg.innerText = `⚠️ รหัสไม่ถูกต้อง (ต้องมี 6 ตัวอักษร): ${empCode}`;
+            input.value = '';
+            input.focus();
+            return;
+        }
+
+        // 🛑 อนุญาตให้เฉพาะรหัสที่เพิ่มไว้ในหน้า "จัดการพนักงาน" เท่านั้นที่สแกนออกนอกพื้นที่/ห้องน้ำได้
+        if (!getEmployeeDept(empCode)) {
+            playBeep('warning');
+            const msg = document.getElementById('restroomMessage');
+            if(msg) msg.innerText = `⚠️ [${empCode}] คุณไม่ได้อยู่ ATS`;
             input.value = '';
             input.focus();
             return;
