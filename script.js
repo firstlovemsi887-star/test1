@@ -1005,11 +1005,28 @@ const MASCOT_FAQ = [
 function initMascot() {
     if (document.getElementById('mascotBtn')) return; // กันฉีดซ้ำถ้าถูกเรียกมากกว่า 1 ครั้ง
 
+    // 🎨 ตัวการ์ตูนหุ่นยนต์น้อยวาดเองด้วย SVG ล้วนๆ (ไม่ใช้ภาพจากที่อื่น กันปัญหาลิขสิทธิ์) ตา/มือขยับได้ด้วย CSS animation
+    const MASCOT_SVG = `
+        <svg viewBox="0 0 100 100" width="42" height="42" class="mascot-svg" aria-hidden="true">
+            <line x1="50" y1="12" x2="50" y2="24" stroke="#fbbf24" stroke-width="3" stroke-linecap="round"/>
+            <circle cx="50" cy="9" r="5" fill="#fbbf24" class="mascot-antenna"/>
+            <line x1="20" y1="76" x2="7" y2="64" stroke="#e2e8f0" stroke-width="7" stroke-linecap="round" class="mascot-arm"/>
+            <rect x="20" y="24" width="60" height="52" rx="22" fill="#f8fafc"/>
+            <ellipse cx="38" cy="48" rx="6" ry="8" fill="#0f172a" class="mascot-eye"/>
+            <ellipse cx="62" cy="48" rx="6" ry="8" fill="#0f172a" class="mascot-eye"/>
+            <circle cx="29" cy="60" r="5" fill="#fca5a5" opacity="0.65"/>
+            <circle cx="71" cy="60" r="5" fill="#fca5a5" opacity="0.65"/>
+            <path d="M42 62 Q50 68 58 62" stroke="#0f172a" stroke-width="3" fill="none" stroke-linecap="round"/>
+            <rect x="31" y="76" width="38" height="18" rx="6" fill="#38bdf8"/>
+            <text x="50" y="89" font-size="11" font-weight="700" fill="#0f172a" text-anchor="middle" font-family="'Segoe UI', sans-serif">ATS</text>
+        </svg>
+    `;
+
     const btn = document.createElement('button');
     btn.id = 'mascotBtn';
     btn.className = 'mascot-btn';
-    btn.title = 'น้องเอทีเอส (ATS) - ผู้ช่วย MFG5';
-    btn.innerHTML = '🤖';
+    btn.setAttribute('aria-label', 'น้องเอทีเอส (ATS) - ผู้ช่วย MFG5');
+    btn.innerHTML = MASCOT_SVG + '<span class="mascot-tooltip">สวัสดีพี่พี่ เอทีเอสสู้สู้นะ 💪</span>';
     document.body.appendChild(btn);
 
     let panel = null;

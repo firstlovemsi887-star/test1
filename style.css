@@ -271,6 +271,65 @@ tr:hover { background: #fbfcfe; }
 
 .mascot-btn:hover { transform: scale(1.08); background: linear-gradient(145deg, #1e293b, #475569); }
 
+.mascot-svg { display: block; overflow: visible; }
+
+/* ตากระพริบเป็นระยะ (นิ่งส่วนใหญ่ของรอบ แล้วกระพริบเร็วๆ) */
+.mascot-eye { transform-origin: center; animation: mascotBlink 4.5s ease-in-out infinite; }
+@keyframes mascotBlink {
+    0%, 92%, 100% { transform: scaleY(1); }
+    95% { transform: scaleY(0.12); }
+    98% { transform: scaleY(1); }
+}
+
+/* มือโบกเป็นระยะ */
+.mascot-arm { transform-origin: 20px 76px; animation: mascotWave 3.8s ease-in-out infinite; }
+@keyframes mascotWave {
+    0%, 78%, 100% { transform: rotate(0deg); }
+    83% { transform: rotate(-28deg); }
+    88% { transform: rotate(12deg); }
+    93% { transform: rotate(-18deg); }
+}
+
+/* หนวด/เสาอากาศกะพริบเบาๆ ตลอด */
+.mascot-antenna { animation: mascotGlow 2s ease-in-out infinite; transform-origin: center; }
+@keyframes mascotGlow {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.45; }
+}
+
+.mascot-tooltip {
+    position: absolute;
+    left: 72px;
+    bottom: 14px;
+    background: #0f172a;
+    color: #ffffff;
+    padding: 8px 14px;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+    box-shadow: 0 8px 16px rgba(15, 23, 42, 0.25);
+    opacity: 0;
+    pointer-events: none;
+    transform: translateX(-6px);
+    transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.mascot-tooltip::after {
+    content: '';
+    position: absolute;
+    left: -6px;
+    bottom: 16px;
+    border-width: 6px 6px 6px 0;
+    border-style: solid;
+    border-color: transparent #0f172a transparent transparent;
+}
+
+.mascot-btn:hover .mascot-tooltip {
+    opacity: 1;
+    transform: translateX(0);
+}
+
 /* นิ่งอยู่กับที่เกือบตลอดรอบ (0-82%) แล้วขยับน่ารักๆ สั้นๆ ท้ายรอบ แทนที่จะลอยตลอดเวลา
    ทั้งดูมีชีวิตชีวากว่าการโยกตลอดเวลาแบบเดิม และไม่กวนตาจนคลิกปุ่มยาก */
 @keyframes mascotFloat {
