@@ -93,7 +93,10 @@ function formatCloudDate(dateStr) {
 }
 
 // 🛠️ ผสาน (merge) ข้อมูลจาก cloud กับ local โดยไม่ทิ้งแถวที่มีอยู่ใน local แต่ยังไม่ถูกซิงค์ขึ้น cloud สำเร็จ
-// ใช้ id เป็นหลักในการจับคู่แถวเดียวกัน ถ้าไม่มี id ใช้ empCode+key รองลงมา
+// [แก้บัค] เดิมจับคู่แถวเดียวกันด้วย id เป็นหลัก แต่ id ฝั่ง client สร้างจาก Date.now() ตอนสแกน
+// ถ้า cloud (Google Sheets) ไม่คืนค่า id เดิมกลับมาเป๊ะๆ (เช่นปัดเศษ/แปลงชนิดข้อมูลตอนบันทึกลงชีต)
+// แถวเดิมใน local กับแถวที่เพิ่งดึงจาก cloud จะถูกมองเป็นคนละแถว พอรีเฟรชหน้าเลยเห็นรหัสเดิมเด้งซ้ำ
+// ตอนนี้จับคู่ด้วย "natural key" ของแถว (รหัสพนักงาน+เวลาที่สแกนจริง) เป็นหลักเสมอ ซึ่งไม่ขึ้นกับว่า cloud จะคืน id ตรงกับที่ส่งไปหรือไม่
 // แถวที่ตรงกันทั้งสองฝั่ง ใช้เวอร์ชันจาก cloud (ถือว่า cloud คือข้อมูลล่าสุดของแถวนั้น)
 // แถวที่มีเฉพาะใน local (เช่น เพิ่งนำเข้า/สแกน แต่ยังส่งขึ้น cloud ไม่สำเร็จ) จะยังคงอยู่ ไม่ถูกลบทิ้ง
 function mergeCloudWithLocal(cloudArr, localArr, keyFn) {
@@ -104,8 +107,8 @@ function mergeCloudWithLocal(cloudArr, localArr, keyFn) {
     merged.sort((a, b) => (Number(b.id) || 0) - (Number(a.id) || 0));
     return merged;
 }
-function attendanceKey(item) { return item.id ? `id:${item.id}` : `${item.empCode}|${item.date}|${item.checkIn}`; }
-function restroomKey(item) { return item.id ? `id:${item.id}` : `${item.empCode}|${item.startTime}`; }
+function attendanceKey(item) { return `${item.empCode}|${item.date}|${item.checkIn}`; }
+function restroomKey(item) { return `${item.empCode}|${item.startTime}`; }
 
 async function fetchCloudData() {
     try {
