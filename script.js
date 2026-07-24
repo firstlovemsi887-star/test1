@@ -1008,8 +1008,8 @@ function initMascot() {
     const btn = document.createElement('button');
     btn.id = 'mascotBtn';
     btn.className = 'mascot-btn';
-    btn.title = 'น้องเอทีเอส (ATS) - ผู้ช่วย MFG5';
-    btn.innerHTML = '🤖';
+    btn.setAttribute('aria-label', 'น้องเอทีเอส (ATS) - ผู้ช่วย MFG5');
+    btn.innerHTML = '🤖<span class="mascot-tooltip">สวัสดีพี่พี่ เอทีเอสสู้สู้นะ 💪</span>';
     document.body.appendChild(btn);
 
     let panel = null;
