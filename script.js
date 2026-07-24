@@ -761,6 +761,69 @@ function exportEmployeesExcel() {
     downloadCSV(csv, `employee_list_${new Date().toISOString().slice(0, 10)}.csv`);
 }
 
+// 📥 นำเข้ารายชื่อพนักงานจากไฟล์ .csv หรือ .xlsx/.xls — อ่านเฉพาะคอลัมน์ A (คอลัมน์แรก) เป็นรหัสพนักงาน แถวละ 1 รหัส
+// ทุกคนที่นำเข้าถูกล็อคแผนกเป็น "ATS" เหมือนเพิ่มทีละคนผ่านฟอร์ม รหัสที่มีอยู่แล้ว/รูปแบบไม่ถูกต้อง จะถูกข้าม
+function importEmployees(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const fileName = file.name.toLowerCase();
+    const isExcel = fileName.endsWith('.xlsx') || fileName.endsWith('.xls');
+
+    const reader = new FileReader();
+    reader.onload = function (e) {
+        try {
+            let rows = [];
+            if (isExcel) {
+                if (typeof XLSX === 'undefined') {
+                    alert("โหลดตัวอ่านไฟล์ Excel ไม่สำเร็จ (ต้องมีอินเทอร์เน็ต) กรุณาลองใหม่ หรือใช้ไฟล์ .csv แทน");
+                    return;
+                }
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                rows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: false, defval: '' });
+            } else {
+                let text = e.target.result.replace(/^﻿/, ''); // ตัด BOM ออก
+                rows = text.split(/\r?\n/).filter(l => l.trim() !== '').map(line => line.split(','));
+            }
+
+            let addedCount = 0, skippedCount = 0;
+            rows.forEach(rawCols => {
+                let rawCode = (rawCols[0] === undefined || rawCols[0] === null) ? '' : String(rawCols[0]).trim();
+                if (!rawCode || rawCode === 'รหัสพนักงาน') { return; } // แถวว่าง/หัวตาราง ข้ามแบบเงียบๆ ไม่นับ skip
+
+                const code = extractEmpCode(rawCode);
+                if (code.length !== 6 || employeeData.find(x => x.empCode === code)) { skippedCount++; return; }
+
+                employeeData.push({ empCode: code, department: LOCKED_DEPARTMENT });
+                addedCount++;
+            });
+
+            if (addedCount > 0) {
+                employeeData.sort((a, b) => a.empCode.localeCompare(b.empCode));
+                localStorage.setItem('mfg5_employees', JSON.stringify(employeeData));
+                renderEmployees();
+                scanChannel.postMessage({ type: 'REFRESH_DATA' });
+            }
+            alert(`นำเข้าสำเร็จ ${addedCount} รายการ (แผนก ${LOCKED_DEPARTMENT})${skippedCount > 0 ? ` — ข้าม ${skippedCount} รายการที่รหัสไม่ถูกต้องหรือมีอยู่แล้ว` : ''}`);
+        } catch (err) {
+            console.error("นำเข้ารายชื่อพนักงานล้มเหลว", err);
+            alert("ไม่สามารถอ่านไฟล์ได้ กรุณาตรวจสอบว่าเป็นไฟล์ CSV หรือ Excel ที่ถูกต้อง");
+        } finally {
+            event.target.value = '';
+        }
+    };
+    reader.onerror = function () {
+        alert("อ่านไฟล์ไม่สำเร็จ");
+    };
+
+    if (isExcel) {
+        reader.readAsArrayBuffer(file);
+    } else {
+        reader.readAsText(file, 'UTF-8');
+    }
+}
+
 // Display Real-time Screen Logic
 scanChannel.onmessage = (event) => {
     let data = event.data;
