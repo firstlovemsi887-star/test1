@@ -1,6 +1,12 @@
 let attendanceData = JSON.parse(localStorage.getItem('mfg5_attendance')) || [];
 let restroomData = JSON.parse(localStorage.getItem('factoryRestroom')) || [];
+let employeeData = JSON.parse(localStorage.getItem('mfg5_employees')) || [];
 const scanChannel = new BroadcastChannel('mfg5_scan_channel');
+
+function getEmployeeDept(empCode) {
+    const e = employeeData.find(x => x.empCode === empCode);
+    return e ? e.department : '';
+}
 
 // 🛑 ตัวแปรสำหรับจำกัดเวลาการสแกนซ้ำ (Debounce Map)
 let lastScanTimeMap = {};
@@ -219,14 +225,15 @@ function processAttendance(empCode) {
         }
         record.ot = otStr;
 
+        const outDept = getEmployeeDept(empCode);
         playBeep('success');
         if (messageBox) {
             messageBox.innerText = otStr === 'ทำ'
-                ? `🔴 [ยืนยันทำ OT] รหัส: ${empCode} เวลาออก: ${timeStr}`
-                : `🔴 [สแกนขาออก - อยู่ต่อไม่ถึง 30 นาที จึงไม่นับ OT] รหัส: ${empCode} เวลาออก: ${timeStr}`;
+                ? `🔴 [ยืนยันทำ OT] รหัส: ${empCode}${outDept ? ` (${outDept})` : ''} เวลาออก: ${timeStr}`
+                : `🔴 [สแกนขาออก - อยู่ต่อไม่ถึง 30 นาที จึงไม่นับ OT] รหัส: ${empCode}${outDept ? ` (${outDept})` : ''} เวลาออก: ${timeStr}`;
             messageBox.style.color = '#ea580c';
         }
-        scanChannel.postMessage({ type: 'CHECK_OUT', empCode, status: record.status, ot: otStr, shift: record.shift, time: timeStr });
+        scanChannel.postMessage({ type: 'CHECK_OUT', empCode, dept: outDept, status: record.status, ot: otStr, shift: record.shift, time: timeStr });
     } else {
         // --- สแกนเข้างานของวันนี้ ---
         let alreadyToday = attendanceData.find(item => item.empCode === empCode && item.date === todayStr);
@@ -252,6 +259,7 @@ function processAttendance(empCode) {
             }
         }
 
+        const dept = getEmployeeDept(empCode);
         const newRecord = {
             id: Date.now(),
             empCode: empCode,
@@ -267,10 +275,10 @@ function processAttendance(empCode) {
         attendanceData.unshift(newRecord);
         playBeep('success');
         if (messageBox) {
-            messageBox.innerText = `🟢 [เข้างาน - ${currentShift}] รหัส: ${empCode} (${statusStr}) — ถ้าทำ OT ให้สแกนซ้ำตอนออกในช่วงเวลา OT`;
+            messageBox.innerText = `🟢 [เข้างาน - ${currentShift}] รหัส: ${empCode}${dept ? ` (${dept})` : ''} (${statusStr}) — ถ้าทำ OT ให้สแกนซ้ำตอนออกในช่วงเวลา OT`;
             messageBox.style.color = statusStr.includes("สาย") ? '#d32f2f' : '#2e7d32';
         }
-        scanChannel.postMessage({ type: 'CHECK_IN', empCode, status: statusStr, shift: currentShift, time: timeStr });
+        scanChannel.postMessage({ type: 'CHECK_IN', empCode, dept, status: statusStr, shift: currentShift, time: timeStr });
     }
 
     saveAndRenderApp();
@@ -284,7 +292,7 @@ function renderTable() {
 
     const filteredData = attendanceData.filter(i => (i.empCode || '').toLowerCase().includes(searchVal));
     if (filteredData.length === 0) {
-        listTable.innerHTML = `<tr><td colspan="7" style="text-align: center; color: #94a3b8; padding: 30px;">ไม่พบข้อมูลการสแกน</td></tr>`;
+        listTable.innerHTML = `<tr><td colspan="8" style="text-align: center; color: #94a3b8; padding: 30px;">ไม่พบข้อมูลการสแกน</td></tr>`;
         updateDashboardApp();
         showSummary();
         return;
@@ -303,6 +311,7 @@ function renderTable() {
 
         tr.innerHTML = `
             <td style="padding: 12px;"><b>${escapeHtml(item.empCode)}</b></td>
+            <td style="padding: 12px;">${escapeHtml(getEmployeeDept(item.empCode))}</td>
             <td style="padding: 12px;"><span style="color: #2e7d32; font-weight: bold;">${escapeHtml(item.checkIn)}</span></td>
             <td style="padding: 12px;"><span style="color: #c62828; font-weight: bold;">${escapeHtml(item.checkOut)}</span></td>
             <td style="padding: 12px;">${escapeHtml(item.shift)}</td>
@@ -332,18 +341,23 @@ function showSummary() {
     const summaryList = document.getElementById('summaryList');
     if(summaryList) {
         summaryList.innerHTML = '';
-        attendanceData.forEach(item => {
-            let tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td><b>${escapeHtml(item.empCode)}</b></td>
-                <td>${escapeHtml(item.checkIn)}</td>
-                <td>${escapeHtml(item.checkOut)}</td>
-                <td>${escapeHtml(item.shift)}</td>
-                <td>${escapeHtml(item.status)}</td>
-                <td>${escapeHtml(item.ot)}</td>
-            `;
-            summaryList.appendChild(tr);
-        });
+        if (attendanceData.length === 0) {
+            summaryList.innerHTML = `<tr><td colspan="7" style="text-align: center; color: #94a3b8; padding: 30px;">ไม่พบข้อมูล</td></tr>`;
+        } else {
+            attendanceData.forEach(item => {
+                let tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><b>${escapeHtml(item.empCode)}</b></td>
+                    <td>${escapeHtml(getEmployeeDept(item.empCode))}</td>
+                    <td>${escapeHtml(item.checkIn)}</td>
+                    <td>${escapeHtml(item.checkOut)}</td>
+                    <td>${escapeHtml(item.shift)}</td>
+                    <td>${escapeHtml(item.status)}</td>
+                    <td>${escapeHtml(item.ot)}</td>
+                `;
+                summaryList.appendChild(tr);
+            });
+        }
     }
     loadDashboard();
 }
@@ -621,7 +635,7 @@ function renderRestroom() {
     if(!list) return;
     list.innerHTML = '';
     if (restroomData.length === 0) {
-        list.innerHTML = `<tr><td colspan="7" style="text-align: center; color: #94a3b8; padding: 30px;">ไม่พบข้อมูลการออกนอกพื้นที่</td></tr>`;
+        list.innerHTML = `<tr><td colspan="8" style="text-align: center; color: #94a3b8; padding: 30px;">ไม่พบข้อมูลการออกนอกพื้นที่</td></tr>`;
         return;
     }
     const now = Date.now();
@@ -639,6 +653,7 @@ function renderRestroom() {
         let tr = document.createElement('tr');
         tr.innerHTML = `
             <td><b>${escapeHtml(item.empCode)}</b></td>
+            <td>${escapeHtml(getEmployeeDept(item.empCode))}</td>
             <td>${escapeHtml(item.reason)}</td>
             <td>${escapeHtml(item.startTime)}</td>
             <td>${escapeHtml(item.returnTime)}</td>
@@ -669,6 +684,95 @@ function exportRestroomExcel() {
     downloadCSV(csv, `restroom_log_${new Date().toISOString().slice(0, 10)}.csv`);
 }
 
+// Employee Directory Logic (รหัสพนักงาน + แผนก ใช้แสดงคู่กับรหัสตอนสแกน)
+function saveEmployee() {
+    const codeInput = document.getElementById('empCodeInput');
+    const deptInput = document.getElementById('empDeptInput');
+    const msg = document.getElementById('employeeMessage');
+    if (!codeInput || !deptInput) return;
+
+    const code = extractEmpCode(codeInput.value.trim());
+    const dept = deptInput.value.trim();
+
+    if (code.length !== 6) {
+        if (msg) { msg.innerText = '⚠️ รหัสพนักงานต้องมี 6 ตัวอักษร'; msg.style.color = '#d32f2f'; }
+        return;
+    }
+    if (!dept) {
+        if (msg) { msg.innerText = '⚠️ กรุณากรอกแผนก'; msg.style.color = '#d32f2f'; }
+        return;
+    }
+
+    const existing = employeeData.find(x => x.empCode === code);
+    if (existing) {
+        existing.department = dept;
+        if (msg) { msg.innerText = `✅ อัปเดตแผนกของรหัส ${code} เป็น "${dept}" แล้ว`; msg.style.color = '#2e7d32'; }
+    } else {
+        employeeData.push({ empCode: code, department: dept });
+        if (msg) { msg.innerText = `✅ เพิ่มพนักงานรหัส ${code} แผนก "${dept}" แล้ว`; msg.style.color = '#2e7d32'; }
+    }
+    employeeData.sort((a, b) => a.empCode.localeCompare(b.empCode));
+    localStorage.setItem('mfg5_employees', JSON.stringify(employeeData));
+
+    codeInput.value = '';
+    deptInput.value = '';
+    codeInput.focus();
+    renderEmployees();
+    scanChannel.postMessage({ type: 'REFRESH_DATA' });
+}
+
+function editEmployee(code) {
+    const e = employeeData.find(x => x.empCode === code);
+    if (!e) return;
+    document.getElementById('empCodeInput').value = e.empCode;
+    document.getElementById('empDeptInput').value = e.department;
+    document.getElementById('empDeptInput').focus();
+}
+
+function deleteEmployee(code) {
+    showConfirm(`ต้องการลบข้อมูลพนักงานรหัส ${code} ใช่หรือไม่?`, () => {
+        employeeData = employeeData.filter(x => x.empCode !== code);
+        localStorage.setItem('mfg5_employees', JSON.stringify(employeeData));
+        renderEmployees();
+        scanChannel.postMessage({ type: 'REFRESH_DATA' });
+    });
+}
+
+function renderEmployees() {
+    const list = document.getElementById('employeeList');
+    if (!list) return;
+    const searchVal = document.getElementById('empSearch')?.value.toLowerCase() || '';
+    list.innerHTML = '';
+
+    const filtered = employeeData.filter(e =>
+        e.empCode.toLowerCase().includes(searchVal) || (e.department || '').toLowerCase().includes(searchVal)
+    );
+    if (filtered.length === 0) {
+        list.innerHTML = `<tr><td colspan="3" style="text-align: center; color: #94a3b8; padding: 30px;">ไม่พบข้อมูลพนักงาน</td></tr>`;
+        return;
+    }
+
+    filtered.forEach(e => {
+        let tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td><b>${escapeHtml(e.empCode)}</b></td>
+            <td>${escapeHtml(e.department)}</td>
+            <td>
+                <button onclick="editEmployee('${e.empCode}')" class="btn-edit">✏️ แก้ไข</button>
+                <button onclick="deleteEmployee('${e.empCode}')" class="btn-danger">ลบ</button>
+            </td>
+        `;
+        list.appendChild(tr);
+    });
+}
+
+function exportEmployeesExcel() {
+    if (employeeData.length === 0) { alert("ไม่มีข้อมูล"); return; }
+    let csv = "﻿รหัสพนักงาน,แผนก\n";
+    employeeData.forEach(e => { csv += `${e.empCode},${e.department}\n`; });
+    downloadCSV(csv, `employee_list_${new Date().toISOString().slice(0, 10)}.csv`);
+}
+
 // Display Real-time Screen Logic
 scanChannel.onmessage = (event) => {
     let data = event.data;
@@ -677,11 +781,13 @@ scanChannel.onmessage = (event) => {
     if (data.type === 'REFRESH_DATA') {
         attendanceData = JSON.parse(localStorage.getItem('mfg5_attendance')) || [];
         restroomData = JSON.parse(localStorage.getItem('factoryRestroom')) || [];
+        employeeData = JSON.parse(localStorage.getItem('mfg5_employees')) || [];
         loadDashboard();
         renderTable();
         showSummary();
         renderRestroom();
         renderDisplayTable();
+        renderEmployees();
         return;
     }
 
@@ -691,7 +797,7 @@ scanChannel.onmessage = (event) => {
     let details = document.getElementById('latestDetails');
 
     if(card && title && codeEl) {
-        codeEl.innerText = data.empCode;
+        codeEl.innerText = data.dept ? `${data.empCode} (${data.dept})` : data.empCode;
         if(data.type === 'CHECK_IN') {
             card.className = "latest-card active-checkin";
             title.innerText = `🟢 เข้างานสำเร็จ (${data.shift})`;
@@ -714,7 +820,7 @@ function renderDisplayTable() {
 
     let filtered = attendanceData.filter(i => (i.empCode || '').toLowerCase().includes(searchVal));
     if (filtered.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: #94a3b8; padding: 30px;">ไม่พบข้อมูลการลงเวลา</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: #94a3b8; padding: 30px;">ไม่พบข้อมูลการลงเวลา</td></tr>`;
         return;
     }
 
@@ -722,6 +828,7 @@ function renderDisplayTable() {
         let tr = document.createElement('tr');
         tr.innerHTML = `
             <td><b>${escapeHtml(item.empCode)}</b></td>
+            <td>${escapeHtml(getEmployeeDept(item.empCode))}</td>
             <td style="color: #4ade80;">${escapeHtml(item.checkIn)}</td>
             <td style="color: #f87171;">${escapeHtml(item.checkOut)}</td>
             <td>${escapeHtml(item.shift)}</td>
@@ -746,6 +853,14 @@ window.addEventListener('storage', (e) => {
     if (e.key === 'factoryRestroom') {
         restroomData = JSON.parse(e.newValue) || [];
         renderRestroom();
+    }
+    if (e.key === 'mfg5_employees') {
+        employeeData = JSON.parse(e.newValue) || [];
+        renderTable();
+        showSummary();
+        renderRestroom();
+        renderDisplayTable();
+        renderEmployees();
     }
 });
 

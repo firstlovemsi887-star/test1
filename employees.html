@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MFG5 ระบบสแกนบัตร - จัดการพนักงาน</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h2>👥 จัดการพนักงาน (รหัส + แผนก)</h2>
+            <button onclick="location.href='index.html'" class="btn-secondary">⬅️ กลับหน้าหลัก</button>
+        </div>
+
+        <div class="scan-box">
+            <h3>เพิ่ม / แก้ไขข้อมูลพนักงาน</h3>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px;">
+                <input type="text" id="empCodeInput" placeholder="รหัสพนักงาน (6 ตัวอักษร)" maxlength="6" autocomplete="off" style="flex: 1; min-width: 180px; padding: 12px; font-size: 16px;">
+                <input type="text" id="empDeptInput" placeholder="แผนก" autocomplete="off" style="flex: 1; min-width: 180px; padding: 12px; font-size: 16px;">
+                <button onclick="saveEmployee()" class="btn-success" style="padding: 12px 24px; font-size: 16px;">💾 บันทึก</button>
+            </div>
+            <div id="employeeMessage" class="message-box">กรอกรหัสพนักงานและแผนก แล้วกดบันทึก (ถ้ารหัสมีอยู่แล้วจะอัปเดตแผนกให้)</div>
+        </div>
+
+        <div class="action-bar">
+            <input type="text" id="empSearch" placeholder="ค้นหารหัส/แผนก..." onkeyup="renderEmployees()">
+            <button onclick="exportEmployeesExcel()" class="btn-excel">📊 ส่งออกรายชื่อ (CSV)</button>
+        </div>
+
+        <div class="table-container" style="margin-top: 20px;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>รหัสพนักงาน</th>
+                        <th>แผนก</th>
+                        <th>จัดการ</th>
+                    </tr>
+                </thead>
+                <tbody id="employeeList">
+                    <tr><td colspan="3" style="text-align: center; color: #94a3b8; padding: 30px;">ไม่พบข้อมูลพนักงาน</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            renderEmployees();
+            document.getElementById('empCodeInput')?.focus();
+        });
+    </script>
+</body>
+</html>

@@ -40,6 +40,7 @@
             <button onclick="window.location.href='summary.html'" class="btn-summary">📋 รายงาน</button>
             <button onclick="window.location.href='restroom.html'" class="btn-restroom">🚻 ออกนอกพื้นที่</button>
             <button onclick="window.location.href='display.html'" class="btn-display">📺 จอแสดงผล</button>
+            <button onclick="window.location.href='employees.html'" class="btn-secondary">👥 จัดการพนักงาน</button>
             <button onclick="clearData()" class="btn-danger">🗑️ ล้างข้อมูล</button>
         </div>
 
@@ -48,6 +49,7 @@
                 <thead>
                     <tr>
                         <th>รหัสพนักงาน</th>
+                        <th>แผนก</th>
                         <th>🟢 วันที่ / เวลาเข้า</th>
                         <th>🔴 วันที่ / เวลาออก</th>
                         <th>กะ</th>
@@ -57,7 +59,7 @@
                     </tr>
                 </thead>
                 <tbody id="list">
-                    <tr><td colspan="7" style="text-align: center; color: #94a3b8; padding: 30px;">ไม่พบข้อมูลการสแกน</td></tr>
+                    <tr><td colspan="8" style="text-align: center; color: #94a3b8; padding: 30px;">ไม่พบข้อมูลการสแกน</td></tr>
                 </tbody>
             </table>
         </div>
