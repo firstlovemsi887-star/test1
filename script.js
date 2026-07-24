@@ -684,49 +684,38 @@ function exportRestroomExcel() {
     downloadCSV(csv, `restroom_log_${new Date().toISOString().slice(0, 10)}.csv`);
 }
 
-// Employee Directory Logic (รหัสพนักงาน + แผนก ใช้แสดงคู่กับรหัสตอนสแกน)
+// Employee Directory Logic (รหัสพนักงาน ใช้แสดงคู่กับรหัสตอนสแกน)
+// ระบบนี้ใช้เฉพาะแผนก ATS เท่านั้น จึงล็อคชื่อแผนกเป็นค่าคงที่แทนการให้พิมพ์เอง
+// กันกรณีมีคนแผนกอื่น (เช่นเข้ามาช่วยเพิ่มข้อมูล) กรอกชื่อแผนกผิดหรือใส่ค่าไม่ตรงกัน
+const LOCKED_DEPARTMENT = 'ATS';
+
 function saveEmployee() {
     const codeInput = document.getElementById('empCodeInput');
-    const deptInput = document.getElementById('empDeptInput');
     const msg = document.getElementById('employeeMessage');
-    if (!codeInput || !deptInput) return;
+    if (!codeInput) return;
 
     const code = extractEmpCode(codeInput.value.trim());
-    const dept = deptInput.value.trim();
 
     if (code.length !== 6) {
         if (msg) { msg.innerText = '⚠️ รหัสพนักงานต้องมี 6 ตัวอักษร'; msg.style.color = '#d32f2f'; }
         return;
     }
-    if (!dept) {
-        if (msg) { msg.innerText = '⚠️ กรุณากรอกแผนก'; msg.style.color = '#d32f2f'; }
-        return;
-    }
 
     const existing = employeeData.find(x => x.empCode === code);
     if (existing) {
-        existing.department = dept;
-        if (msg) { msg.innerText = `✅ อัปเดตแผนกของรหัส ${code} เป็น "${dept}" แล้ว`; msg.style.color = '#2e7d32'; }
-    } else {
-        employeeData.push({ empCode: code, department: dept });
-        if (msg) { msg.innerText = `✅ เพิ่มพนักงานรหัส ${code} แผนก "${dept}" แล้ว`; msg.style.color = '#2e7d32'; }
+        if (msg) { msg.innerText = `⚠️ รหัส ${code} มีอยู่ในระบบแล้ว (แผนก ${LOCKED_DEPARTMENT})`; msg.style.color = '#d32f2f'; }
+        return;
     }
+
+    employeeData.push({ empCode: code, department: LOCKED_DEPARTMENT });
     employeeData.sort((a, b) => a.empCode.localeCompare(b.empCode));
     localStorage.setItem('mfg5_employees', JSON.stringify(employeeData));
 
+    if (msg) { msg.innerText = `✅ เพิ่มพนักงานรหัส ${code} แผนก ${LOCKED_DEPARTMENT} แล้ว`; msg.style.color = '#2e7d32'; }
     codeInput.value = '';
-    deptInput.value = '';
     codeInput.focus();
     renderEmployees();
     scanChannel.postMessage({ type: 'REFRESH_DATA' });
-}
-
-function editEmployee(code) {
-    const e = employeeData.find(x => x.empCode === code);
-    if (!e) return;
-    document.getElementById('empCodeInput').value = e.empCode;
-    document.getElementById('empDeptInput').value = e.department;
-    document.getElementById('empDeptInput').focus();
 }
 
 function deleteEmployee(code) {
@@ -758,7 +747,6 @@ function renderEmployees() {
             <td><b>${escapeHtml(e.empCode)}</b></td>
             <td>${escapeHtml(e.department)}</td>
             <td>
-                <button onclick="editEmployee('${e.empCode}')" class="btn-edit">✏️ แก้ไข</button>
                 <button onclick="deleteEmployee('${e.empCode}')" class="btn-danger">ลบ</button>
             </td>
         `;

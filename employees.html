@@ -14,13 +14,13 @@
         </div>
 
         <div class="scan-box">
-            <h3>เพิ่ม / แก้ไขข้อมูลพนักงาน</h3>
+            <h3>เพิ่มพนักงานแผนก ATS</h3>
+            <p style="margin: 0 0 10px; color: #64748b; font-size: 14px;">ระบบนี้ใช้เฉพาะแผนก ATS เท่านั้น พนักงานที่เพิ่มทุกคนจะถูกล็อคแผนกเป็น "ATS" อัตโนมัติ ไม่ต้องพิมพ์เอง (กันกรอกผิดกรณีมีคนแผนกอื่นมาเพิ่มข้อมูล)</p>
             <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px;">
                 <input type="text" id="empCodeInput" placeholder="รหัสพนักงาน (6 ตัวอักษร)" maxlength="6" autocomplete="off" style="flex: 1; min-width: 180px; padding: 12px; font-size: 16px;">
-                <input type="text" id="empDeptInput" placeholder="แผนก" autocomplete="off" style="flex: 1; min-width: 180px; padding: 12px; font-size: 16px;">
-                <button onclick="saveEmployee()" class="btn-success" style="padding: 12px 24px; font-size: 16px;">💾 บันทึก</button>
+                <button onclick="saveEmployee()" class="btn-success" style="padding: 12px 24px; font-size: 16px;">💾 เพิ่มพนักงาน (แผนก ATS)</button>
             </div>
-            <div id="employeeMessage" class="message-box">กรอกรหัสพนักงานและแผนก แล้วกดบันทึก (ถ้ารหัสมีอยู่แล้วจะอัปเดตแผนกให้)</div>
+            <div id="employeeMessage" class="message-box">กรอกรหัสพนักงานแล้วกดเพิ่ม — แผนกถูกล็อคเป็น "ATS" ให้อัตโนมัติ</div>
         </div>
 
         <div class="action-bar">
