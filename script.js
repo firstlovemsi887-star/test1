@@ -33,6 +33,42 @@ function playBeep(type) {
     }
 }
 
+// 🛠️ ใช้แทน window.confirm() เพราะ confirm()/alert() ของเบราว์เซอร์ถูกบล็อกในหน้าที่รันอยู่ใน
+// sandboxed iframe (เช่นหน้าเดโมที่โฮสต์อยู่ใน Claude Artifact) กดแล้วจะเหมือนไม่มีอะไรเกิดขึ้นเลย
+// สร้าง modal ยืนยันของแอปเองแทน ใช้ CSS .modal/.modal-content เดิมที่มีอยู่แล้ว
+function showConfirm(message, onYes) {
+    let modal = document.getElementById('genericConfirmModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'genericConfirmModal';
+        modal.className = 'modal';
+        modal.style.display = 'none';
+        modal.innerHTML = `
+            <div class="modal-content" style="width: 380px; text-align: center;">
+                <p id="genericConfirmMessage" style="margin: 0 0 20px; font-size: 15px; color: #334155;"></p>
+                <div style="display: flex; justify-content: center; gap: 10px;">
+                    <button id="genericConfirmNo" class="btn-secondary">ยกเลิก</button>
+                    <button id="genericConfirmYes" class="btn-danger">ยืนยัน</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+    document.getElementById('genericConfirmMessage').textContent = message;
+    modal.style.display = 'flex';
+
+    // แทนที่ปุ่มด้วยตัวโคลนทุกครั้งเพื่อล้าง event handler เก่า กัน callback ซ้อนกันถ้าเรียก showConfirm ซ้ำ
+    const yesBtn = document.getElementById('genericConfirmYes');
+    const noBtn = document.getElementById('genericConfirmNo');
+    const newYesBtn = yesBtn.cloneNode(true);
+    yesBtn.parentNode.replaceChild(newYesBtn, yesBtn);
+    const newNoBtn = noBtn.cloneNode(true);
+    noBtn.parentNode.replaceChild(newNoBtn, noBtn);
+
+    newYesBtn.onclick = () => { modal.style.display = 'none'; onYes(); };
+    newNoBtn.onclick = () => { modal.style.display = 'none'; };
+}
+
 // 🛡️ ป้องกัน XSS: escape ค่าก่อนแทรกลง innerHTML เพราะข้อมูลอาจมาจาก cloud API ที่ไม่มี auth หรือไฟล์นำเข้า/แก้ไขเองได้
 function escapeHtml(str) {
     if (str === undefined || str === null) return '';
@@ -452,35 +488,45 @@ function saveAndRenderApp() {
     showSummary();
 }
 
-function deleteRecord(id) {
-    if (confirm('ต้องการลบรายการนี้ใช่หรือไม่?')) {
-        const recordToDelete = attendanceData.find(i => i.id === id);
-        attendanceData = attendanceData.filter(i => i.id !== id);
-        saveAndRenderApp();
+function performDeleteRecord(id) {
+    const recordToDelete = attendanceData.find(i => i.id === id);
+    attendanceData = attendanceData.filter(i => i.id !== id);
+    saveAndRenderApp();
 
-        // 🛠️ ส่งคำสั่งลบไปที่ Cloud และบอกหน้าอื่นๆ ให้รีเฟรช
-        if (recordToDelete) {
-            sendToCloud({ 
-                sheet: 'attendance', 
-                action: 'delete', 
-                id: recordToDelete.id, 
-                empCode: recordToDelete.empCode, 
-                date: recordToDelete.date 
-            });
-        }
-        scanChannel.postMessage({ type: 'REFRESH_DATA' });
+    // 🛠️ ส่งคำสั่งลบไปที่ Cloud และบอกหน้าอื่นๆ ให้รีเฟรช
+    if (recordToDelete) {
+        sendToCloud({
+            sheet: 'attendance',
+            action: 'delete',
+            id: recordToDelete.id,
+            empCode: recordToDelete.empCode,
+            date: recordToDelete.date
+        });
     }
+    scanChannel.postMessage({ type: 'REFRESH_DATA' });
+}
+
+function deleteRecord(id) {
+    showConfirm('ต้องการลบรายการนี้ใช่หรือไม่?', () => performDeleteRecord(id));
+}
+
+function deleteRecordFromModal() {
+    const id = Number(document.getElementById('editId').value);
+    showConfirm('ต้องการลบรายการนี้ใช่หรือไม่?', () => {
+        performDeleteRecord(id);
+        closeEditModal();
+    });
 }
 
 function clearData() {
-    if (confirm('⚠️ ต้องการล้างข้อมูลการลงเวลาทั้งหมดใช่หรือไม่?')) {
+    showConfirm('⚠️ ต้องการล้างข้อมูลการลงเวลาทั้งหมดใช่หรือไม่?', () => {
         attendanceData = [];
         saveAndRenderApp();
         sendToCloud({ sheet: 'attendance', action: 'clear' });
-        
+
         // 🛠️ ส่งสัญญาณบอกหน้าอื่นๆ ให้ล้างข้อมูลตาม
         scanChannel.postMessage({ type: 'REFRESH_DATA' });
-    }
+    });
 }
 
 function exportExcel() {
