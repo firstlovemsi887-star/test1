@@ -83,9 +83,12 @@
                 <option value="ทำ">ทำ</option>
                 <option value="ไม่ทำ">ไม่ทำ</option>
             </select>
-            <div style="text-align: right; margin-top: 20px;">
-                <button onclick="closeEditModal()" class="btn-secondary">ยกเลิก</button>
-                <button onclick="saveEdit()" class="btn-success">บันทึก</button>
+            <div style="display: flex; justify-content: space-between; margin-top: 20px;">
+                <button onclick="deleteRecordFromModal()" class="btn-danger">🗑️ ลบรายการนี้</button>
+                <div>
+                    <button onclick="closeEditModal()" class="btn-secondary">ยกเลิก</button>
+                    <button onclick="saveEdit()" class="btn-success">บันทึก</button>
+                </div>
             </div>
         </div>
     </div>

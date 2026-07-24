@@ -472,6 +472,12 @@ function deleteRecord(id) {
     }
 }
 
+function deleteRecordFromModal() {
+    const id = Number(document.getElementById('editId').value);
+    deleteRecord(id);
+    if (!attendanceData.find(i => i.id === id)) closeEditModal();
+}
+
 function clearData() {
     if (confirm('⚠️ ต้องการล้างข้อมูลการลงเวลาทั้งหมดใช่หรือไม่?')) {
         attendanceData = [];
