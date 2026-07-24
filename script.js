@@ -727,23 +727,56 @@ function deleteEmployee(code) {
     });
 }
 
+// 🛠️ ลบพนักงานที่ติ๊กเลือกไว้หลายคนพร้อมกัน — แยกจาก deleteEmployee (ลบทีละแถว) และแยกจาก
+// clearData ของหน้าลงเวลา (ลบเฉพาะรายชื่อพนักงานหน้านี้เท่านั้น ไม่แตะข้อมูลลงเวลา/ห้องน้ำ)
+function deleteSelectedEmployees() {
+    const checked = Array.from(document.querySelectorAll('.emp-select:checked')).map(cb => cb.value);
+    if (checked.length === 0) {
+        alert('กรุณาติ๊กเลือกพนักงานที่ต้องการลบก่อน');
+        return;
+    }
+    showConfirm(`ต้องการลบพนักงานที่เลือกไว้ ${checked.length} คน ใช่หรือไม่?`, () => {
+        employeeData = employeeData.filter(x => !checked.includes(x.empCode));
+        localStorage.setItem('mfg5_employees', JSON.stringify(employeeData));
+        renderEmployees();
+        scanChannel.postMessage({ type: 'REFRESH_DATA' });
+    });
+}
+
+function deleteAllEmployees() {
+    if (employeeData.length === 0) { alert('ไม่มีข้อมูลพนักงาน'); return; }
+    showConfirm('⚠️ ต้องการลบรายชื่อพนักงานทั้งหมดใช่หรือไม่? (ไม่เกี่ยวกับข้อมูลการลงเวลา)', () => {
+        employeeData = [];
+        localStorage.setItem('mfg5_employees', JSON.stringify(employeeData));
+        renderEmployees();
+        scanChannel.postMessage({ type: 'REFRESH_DATA' });
+    });
+}
+
+function toggleSelectAllEmployees(checkbox) {
+    document.querySelectorAll('.emp-select').forEach(cb => { cb.checked = checkbox.checked; });
+}
+
 function renderEmployees() {
     const list = document.getElementById('employeeList');
     if (!list) return;
     const searchVal = document.getElementById('empSearch')?.value.toLowerCase() || '';
     list.innerHTML = '';
+    const selectAll = document.getElementById('selectAllEmp');
+    if (selectAll) selectAll.checked = false;
 
     const filtered = employeeData.filter(e =>
         e.empCode.toLowerCase().includes(searchVal) || (e.department || '').toLowerCase().includes(searchVal)
     );
     if (filtered.length === 0) {
-        list.innerHTML = `<tr><td colspan="3" style="text-align: center; color: #94a3b8; padding: 30px;">ไม่พบข้อมูลพนักงาน</td></tr>`;
+        list.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #94a3b8; padding: 30px;">ไม่พบข้อมูลพนักงาน</td></tr>`;
         return;
     }
 
     filtered.forEach(e => {
         let tr = document.createElement('tr');
         tr.innerHTML = `
+            <td><input type="checkbox" class="emp-select" value="${e.empCode}"></td>
             <td><b>${escapeHtml(e.empCode)}</b></td>
             <td>${escapeHtml(e.department)}</td>
             <td>

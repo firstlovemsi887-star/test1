@@ -29,20 +29,23 @@
             <button onclick="exportEmployeesExcel()" class="btn-excel">📊 ส่งออกรายชื่อ (CSV)</button>
             <input type="file" id="importEmployeeFile" accept=".csv,.xlsx,.xls" style="display:none" onchange="importEmployees(event)">
             <button onclick="document.getElementById('importEmployeeFile').click()" class="btn-import">📥 นำเข้าข้อมูล</button>
+            <button onclick="deleteSelectedEmployees()" class="btn-danger">🗑️ ลบที่เลือก</button>
+            <button onclick="deleteAllEmployees()" class="btn-danger">🗑️ ลบพนักงานทั้งหมด</button>
         </div>
-        <p style="margin: 8px 0 0; color: #94a3b8; font-size: 13px;">นำเข้าจากไฟล์ CSV/Excel: อ่านรหัสพนักงานจากคอลัมน์ A (คอลัมน์แรกสุด) แถวละ 1 รหัส ทุกคนที่นำเข้าจะถูกล็อคแผนกเป็น "ATS" เหมือนเพิ่มทีละคน</p>
+        <p style="margin: 8px 0 0; color: #94a3b8; font-size: 13px;">นำเข้าจากไฟล์ CSV/Excel: อ่านรหัสพนักงานจากคอลัมน์ A (คอลัมน์แรกสุด) แถวละ 1 รหัส ทุกคนที่นำเข้าจะถูกล็อคแผนกเป็น "ATS" เหมือนเพิ่มทีละคน — ปุ่ม "ลบพนักงานทั้งหมด" ลบเฉพาะรายชื่อพนักงานหน้านี้ ไม่เกี่ยวกับข้อมูลการลงเวลา/ล้างระบบที่หน้าอื่น</p>
 
         <div class="table-container" style="margin-top: 20px;">
             <table>
                 <thead>
                     <tr>
+                        <th><input type="checkbox" id="selectAllEmp" onchange="toggleSelectAllEmployees(this)"></th>
                         <th>รหัสพนักงาน</th>
                         <th>แผนก</th>
                         <th>จัดการ</th>
                     </tr>
                 </thead>
                 <tbody id="employeeList">
-                    <tr><td colspan="3" style="text-align: center; color: #94a3b8; padding: 30px;">ไม่พบข้อมูลพนักงาน</td></tr>
+                    <tr><td colspan="4" style="text-align: center; color: #94a3b8; padding: 30px;">ไม่พบข้อมูลพนักงาน</td></tr>
                 </tbody>
             </table>
         </div>
