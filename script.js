@@ -33,6 +33,17 @@ function playBeep(type) {
     }
 }
 
+// 🛡️ ป้องกัน XSS: escape ค่าก่อนแทรกลง innerHTML เพราะข้อมูลอาจมาจาก cloud API ที่ไม่มี auth หรือไฟล์นำเข้า/แก้ไขเองได้
+function escapeHtml(str) {
+    if (str === undefined || str === null) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 // 🛠️ ฟังก์ชันช่วยแปลงวันที่จาก ISO String ให้เป็นรูปแบบวันที่/เวลาไทย
 function formatCloudDate(dateStr) {
     if (!dateStr || dateStr === '-') return '-';
@@ -210,47 +221,80 @@ function handleScan(event) {
     }
 }
 
+// 🕐 กติกากะ/OT (ยืนยันกับหน้างานแล้ว):
+//   กะเช้า: เข้างาน 08:00 ตรง ไม่มีเกรซ (สายทันทีถ้าเกิน 08:00) เลิกงานปกติ 17:30
+//   กะดึก: เข้างาน 20:00 ตรง ไม่มีเกรซ เลิกงานปกติ 05:30 (วันถัดไป)
+//   ทั้งสองกะ: คนไม่ทำ OT จะไม่สแกนขาออกเลย — สแกนครั้งเดียวตอนเข้างานถือว่าจบวันนั้น (checkOut '-' = ไม่ทำ OT)
+//   คนทำ OT สแกนซ้ำตอนออก ไม่มีเพดานเวลาบน (สแกนดึกแค่ไหนก็นับ OT ได้) แต่ต้องอยู่ต่ออย่างน้อย 30 นาที
+//   หลังเลิกงานปกติถึงจะนับ OT (กะเช้า >= 18:00, กะดึก >= 06:00) กันคนแตะบัตรออกทันทีตอนเลิกงานเพื่อเคลม OT ฟรี
 function processAttendance(empCode) {
     const now = new Date();
     const currentTime = now.getTime();
     const messageBox = document.getElementById('message');
-    
+
     // 🛑 ป้องกันสแกนซ้ำภายใน 0.5 วินาที (500 มิลลิวินาที)
     if (lastScanTimeMap[empCode] && (currentTime - lastScanTimeMap[empCode] < 500)) {
         playBeep('warning');
-        if(messageBox) {
+        if (messageBox) {
             messageBox.innerText = `⚠️ รหัส ${empCode} สแกนเร็วเกินไป กรุณารอสักครู่`;
             messageBox.style.color = '#f59e0b';
         }
         return;
     }
-    
     lastScanTimeMap[empCode] = currentTime;
 
     const todayStr = now.toLocaleDateString('th-TH');
     const timeStr = now.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
     const fullDateTimeStr = `${todayStr} ${timeStr}`;
-    
-    // 🛠️ [แก้บัค] หาเรคคอร์ดที่ "ยังไม่ปิด" (checkOut === '-') ของพนักงานคนนี้ก่อนเสมอ
-    // ไม่กรองด้วย todayStr เพราะกะดึกอาจเช็คอินวันที่ A แล้วมาเช็คเอาท์วันที่ A+1
-    // (ของเดิมกรองด้วยวันที่ปัจจุบันเลยหาเรคคอร์ดเช็คอินของเมื่อคืนไม่เจอ กลายเป็นเช็คอินซ้ำ)
-    let record = attendanceData.find(item => item.empCode === empCode && item.checkOut === '-');
+    const currentMinutes = now.getHours() * 60 + now.getMinutes();
 
-    if (!record) {
-        // 🛑 ตรวจสอบว่าวันนี้พนักงานคนนี้สแกนครบ 2 ครั้ง (เข้า-ออก) ไปแล้วหรือยัง
-        let completedToday = attendanceData.find(item => item.empCode === empCode && item.date === todayStr && item.checkOut !== '-');
-        if (completedToday) {
+    // 🛠️ เพราะคนไม่ทำ OT ไม่สแกนขาออก checkOut '-' คือสถานะปกติตลอดไปสำหรับวันนั้น ไม่ใช่ข้อผิดพลาด
+    // สแกนครั้งที่ 2 ของพนักงานคนเดิมจะถือเป็น "ยืนยัน OT" ก็ต่อเมื่อยังอยู่ในช่วงกะเดียวกัน (เช็คจากเวลาที่ผ่านไปจริง
+    // ไม่ใช่วันที่ตามปฏิทิน เพราะกะดึกข้ามเที่ยงคืน) ถ้าพ้นช่วงนี้ไปแล้วให้ถือเป็นการสแกนเข้างานของกะ/วันใหม่เสมอ
+    const SAME_SHIFT_WINDOW_MS = 20 * 60 * 60 * 1000; // 20 ชม. ครอบคลุมกะ + ช่วง OT แต่ไม่ข้ามไปกะถัดไป
+    const openRecord = attendanceData.find(item => item.empCode === empCode && item.checkOut === '-');
+    const isOtConfirmScan = openRecord && openRecord.rawCheckInTime && (currentTime - openRecord.rawCheckInTime <= SAME_SHIFT_WINDOW_MS);
+
+    if (isOtConfirmScan) {
+        // --- สแกนครั้งที่ 2: ยืนยัน OT ของกะที่เข้างานไว้ ---
+        // 🛠️ กันคนแตะบัตรออกทันทีตอนเลิกงานเพื่อเคลม OT ฟรี: ต้องอยู่ต่ออย่างน้อย 30 นาทีหลังเลิกงานปกติ
+        // (กะเช้า >= 18:00, กะดึก >= 06:00) ถึงจะนับ OT ไม่มีเพดานเวลาบน สแกนดึกแค่ไหนก็ยังนับ OT ได้
+        const record = openRecord;
+        record.checkOut = fullDateTimeStr;
+
+        let otStr = 'ไม่ทำ';
+        if (record.shift === 'กะเช้า' && currentMinutes >= (18 * 60)) {
+            otStr = 'ทำ';
+        } else if (record.shift === 'กะดึก' && now.getHours() < 12 && currentMinutes >= (6 * 60)) {
+            otStr = 'ทำ';
+        }
+        record.ot = otStr;
+
+        playBeep('success');
+        if (messageBox) {
+            messageBox.innerText = otStr === 'ทำ'
+                ? `🔴 [ยืนยันทำ OT] รหัส: ${empCode} เวลาออก: ${timeStr}`
+                : `🔴 [สแกนขาออก - อยู่ต่อไม่ถึง 30 นาที จึงไม่นับ OT] รหัส: ${empCode} เวลาออก: ${timeStr}`;
+            messageBox.style.color = '#ea580c';
+        }
+        scanChannel.postMessage({ type: 'CHECK_OUT', empCode, status: record.status, ot: otStr, shift: record.shift, time: timeStr });
+        sendToCloud({
+            sheet: 'attendance', action: 'update_checkout', empCode: empCode,
+            date: record.date, checkOut: fullDateTimeStr, ot: otStr
+        });
+    } else {
+        // --- สแกนเข้างานของวันนี้ ---
+        let alreadyToday = attendanceData.find(item => item.empCode === empCode && item.date === todayStr);
+        if (alreadyToday) {
             playBeep('warning');
-            if(messageBox) {
-                messageBox.innerText = `⚠️ รหัส ${empCode} ได้สแกนครบ 2 ครั้ง (เข้า-ออก) สำหรับวันนี้แล้ว!`;
+            if (messageBox) {
+                messageBox.innerText = `⚠️ รหัส ${empCode} สแกนเข้างานของวันนี้ไปแล้ว (${alreadyToday.checkOut !== '-' ? 'ยืนยัน OT แล้ว' : 'ไม่ทำ OT'})`;
                 messageBox.style.color = '#d32f2f';
             }
             return;
         }
-        // --- สแกนครั้งที่ 1: บันทึกเข้างาน ---
-        let statusStr = "ปกติ";
-        let currentMinutes = now.getHours() * 60 + now.getMinutes();
 
+        let statusStr = "ปกติ";
         if (currentShift === 'กะเช้า' && currentMinutes > (8 * 60)) {
             statusStr = `สาย (${currentMinutes - (8 * 60)} นาที)`;
         } else if (currentShift === 'กะดึก') {
@@ -259,7 +303,7 @@ function processAttendance(empCode) {
                 statusStr = `สาย (${currentMinutes - shiftInMinutes} นาที)`;
             } else if (now.getHours() < 12) {
                 let lateMins = (currentMinutes + 1440) - shiftInMinutes;
-                if(lateMins > 0) statusStr = `สาย (${lateMins} นาที)`;
+                if (lateMins > 0) statusStr = `สาย (${lateMins} นาที)`;
             }
         }
 
@@ -271,44 +315,18 @@ function processAttendance(empCode) {
             checkOut: '-',
             shift: currentShift,
             status: statusStr,
-            ot: 'ไม่ทำ'
+            ot: 'ไม่ทำ',
+            rawCheckInTime: currentTime
         };
 
         attendanceData.unshift(newRecord);
         playBeep('success');
-        if(messageBox) {
-            messageBox.innerText = `🟢 [เข้างานครั้งที่ 1 - ${currentShift}] รหัส: ${empCode} (${statusStr})`;
+        if (messageBox) {
+            messageBox.innerText = `🟢 [เข้างาน - ${currentShift}] รหัส: ${empCode} (${statusStr}) — ถ้าทำ OT ให้สแกนซ้ำตอนออกในช่วงเวลา OT`;
             messageBox.style.color = statusStr.includes("สาย") ? '#d32f2f' : '#2e7d32';
         }
         scanChannel.postMessage({ type: 'CHECK_IN', empCode, status: statusStr, shift: currentShift, time: timeStr });
         sendToCloud({ sheet: 'attendance', action: 'add', ...newRecord });
-    } else {
-        // --- สแกนครั้งที่ 2: บันทึกออกงาน ---
-        record.checkOut = fullDateTimeStr;
-        let otStr = "ไม่ทำ";
-        let outMinutes = now.getHours() * 60 + now.getMinutes();
-
-        if (record.shift === 'กะเช้า' && outMinutes >= (18 * 60)) {
-            otStr = "ทำ";
-        } else if (record.shift === 'กะดึก' && now.getHours() < 12 && outMinutes >= (6 * 60)) {
-            otStr = "ทำ";
-        }
-
-        record.ot = otStr;
-        playBeep('success');
-        if(messageBox) {
-            messageBox.innerText = `🔴 [สแกนออกครั้งที่ 2 - สิ้นสุดวันนี้] รหัส: ${empCode} (OT: ${otStr})`;
-            messageBox.style.color = '#ea580c';
-        }
-        scanChannel.postMessage({ type: 'CHECK_OUT', empCode, status: record.status, ot: otStr, shift: record.shift, time: timeStr });
-        sendToCloud({
-            sheet: 'attendance',
-            action: 'update_checkout',
-            empCode: empCode,
-            date: todayStr,
-            checkOut: fullDateTimeStr,
-            ot: otStr
-        });
     }
 
     saveAndRenderApp();
@@ -320,21 +338,22 @@ function renderTable() {
     const searchVal = document.getElementById('search')?.value.toLowerCase() || '';
     listTable.innerHTML = '';
 
-    attendanceData.filter(i => i.empCode.toLowerCase().includes(searchVal)).forEach(item => {
+    attendanceData.filter(i => (i.empCode || '').toLowerCase().includes(searchVal)).forEach(item => {
         const tr = document.createElement('tr');
-        let statusBadge = item.status.includes("สาย") 
-            ? `<span style="background: #ff4d4f; color: white; padding: 3px 8px; border-radius: 12px; font-size: 13px;">⚠️ ${item.status}</span>`
+        const status = item.status || '';
+        let statusBadge = status.includes("สาย")
+            ? `<span style="background: #ff4d4f; color: white; padding: 3px 8px; border-radius: 12px; font-size: 13px;">⚠️ ${escapeHtml(status)}</span>`
             : `<span style="background: #52c41a; color: white; padding: 3px 8px; border-radius: 12px; font-size: 13px;">ปกติ</span>`;
 
-        let otBadge = (item.ot === "ทำ") 
-            ? `<span style="background: #1890ff; color: white; padding: 3px 8px; border-radius: 12px; font-size: 13px;">⭐ ทำ OT</span>` 
+        let otBadge = (item.ot === "ทำ")
+            ? `<span style="background: #1890ff; color: white; padding: 3px 8px; border-radius: 12px; font-size: 13px;">⭐ ทำ OT</span>`
             : `<span style="color: #888;">ไม่ทำ</span>`;
 
         tr.innerHTML = `
-            <td style="padding: 12px;"><b>${item.empCode}</b></td>
-            <td style="padding: 12px;"><span style="color: #2e7d32; font-weight: bold;">${item.checkIn}</span></td>
-            <td style="padding: 12px;"><span style="color: #c62828; font-weight: bold;">${item.checkOut}</span></td>
-            <td style="padding: 12px;">${item.shift}</td>
+            <td style="padding: 12px;"><b>${escapeHtml(item.empCode)}</b></td>
+            <td style="padding: 12px;"><span style="color: #2e7d32; font-weight: bold;">${escapeHtml(item.checkIn)}</span></td>
+            <td style="padding: 12px;"><span style="color: #c62828; font-weight: bold;">${escapeHtml(item.checkOut)}</span></td>
+            <td style="padding: 12px;">${escapeHtml(item.shift)}</td>
             <td style="padding: 12px;">${statusBadge}</td>
             <td style="padding: 12px;">${otBadge}</td>
             <td style="padding: 12px;">
@@ -364,12 +383,12 @@ function showSummary() {
         attendanceData.forEach(item => {
             let tr = document.createElement('tr');
             tr.innerHTML = `
-                <td><b>${item.empCode}</b></td>
-                <td>${item.checkIn}</td>
-                <td>${item.checkOut}</td>
-                <td>${item.shift}</td>
-                <td>${item.status}</td>
-                <td>${item.ot}</td>
+                <td><b>${escapeHtml(item.empCode)}</b></td>
+                <td>${escapeHtml(item.checkIn)}</td>
+                <td>${escapeHtml(item.checkOut)}</td>
+                <td>${escapeHtml(item.shift)}</td>
+                <td>${escapeHtml(item.status)}</td>
+                <td>${escapeHtml(item.ot)}</td>
             `;
             summaryList.appendChild(tr);
         });
@@ -388,7 +407,7 @@ function openEditModal(id) {
     
     // 🛠️ กำหนดค่าสถานะให้เลือก Dropdown เป็น "สาย" หรือ "ปกติ" อัตโนมัติ
     const statusSelect = document.getElementById('editStatus');
-    if (record.status && record.status.includes('สาย')) {
+    if ((record.status || '').includes('สาย')) {
         statusSelect.value = 'สาย';
     } else {
         statusSelect.value = 'ปกติ';
@@ -407,6 +426,7 @@ function saveEdit() {
     const id = Number(document.getElementById('editId').value);
     const record = attendanceData.find(i => i.id === id);
     if (record) {
+        record.empCode = document.getElementById('editEmpCode').value.trim();
         record.checkIn = document.getElementById('editCheckIn').value.trim();
         record.checkOut = document.getElementById('editCheckOut').value.trim();
         record.shift = document.getElementById('editShift').value;
@@ -414,6 +434,15 @@ function saveEdit() {
         record.ot = document.getElementById('editOt').value;
         saveAndRenderApp();
         closeEditModal();
+
+        // 🛠️ [แก้บัค] เดิมแก้ไขแค่ local ไม่ sync ขึ้น cloud เลย พอโหลดข้อมูลใหม่จาก cloud
+        // (fetchCloudData merge โดยให้ cloud ทับ local เมื่อ id ตรงกัน) ค่าที่แก้ไขจะถูกเขียนทับกลับเป็นค่าเดิม
+        sendToCloud({
+            sheet: 'attendance', action: 'update', id: record.id, empCode: record.empCode,
+            date: record.date, checkIn: record.checkIn, checkOut: record.checkOut,
+            shift: record.shift, status: record.status, ot: record.ot
+        });
+        scanChannel.postMessage({ type: 'REFRESH_DATA' });
     }
 }
 
@@ -658,6 +687,12 @@ function handleRestroomScan(event) {
             activeRecord.duration = `${diffMins} นาที`;
             activeRecord.status = 'กลับเข้าพื้นที่แล้ว';
             playBeep('success');
+            // 🛠️ [แก้บัค] เดิมตอนกลับเข้าพื้นที่ไม่ sync ขึ้น cloud เลย (มีแต่ตอนออก) พอโหลดข้อมูลใหม่จาก cloud
+            // ในภายหลัง สถานะจะถูกเขียนทับกลับเป็น "ออกนอกพื้นที่" เหมือนยังไม่ได้กลับ
+            sendToCloud({
+                sheet: 'restroom', action: 'update', id: activeRecord.id, empCode: activeRecord.empCode,
+                returnTime: activeRecord.returnTime, duration: activeRecord.duration, status: activeRecord.status
+            });
         }
 
         localStorage.setItem('factoryRestroom', JSON.stringify(restroomData));
@@ -686,12 +721,12 @@ function renderRestroom() {
         }
         let tr = document.createElement('tr');
         tr.innerHTML = `
-            <td><b>${item.empCode}</b></td>
-            <td>${item.reason}</td>
-            <td>${item.startTime}</td>
-            <td>${item.returnTime}</td>
-            <td>${item.duration}</td>
-            <td><span class="timer-badge ${isOver ? 'timer-over' : 'timer-normal'}">${item.status}</span></td>
+            <td><b>${escapeHtml(item.empCode)}</b></td>
+            <td>${escapeHtml(item.reason)}</td>
+            <td>${escapeHtml(item.startTime)}</td>
+            <td>${escapeHtml(item.returnTime)}</td>
+            <td>${escapeHtml(item.duration)}</td>
+            <td><span class="timer-badge ${isOver ? 'timer-over' : 'timer-normal'}">${escapeHtml(item.status)}</span></td>
             <td><button onclick="deleteRestroom(${item.id})" class="btn-danger">ลบ</button></td>
         `;
         list.appendChild(tr);
@@ -760,7 +795,7 @@ function renderDisplayTable() {
     const searchVal = document.getElementById('empSearchInput')?.value.toLowerCase() || '';
     tbody.innerHTML = '';
     
-    let filtered = attendanceData.filter(i => i.empCode.toLowerCase().includes(searchVal));
+    let filtered = attendanceData.filter(i => (i.empCode || '').toLowerCase().includes(searchVal));
     if (filtered.length === 0) {
         tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: #94a3b8; padding: 30px;">ไม่พบข้อมูลการลงเวลา</td></tr>`;
         return;
@@ -769,12 +804,12 @@ function renderDisplayTable() {
     filtered.forEach(item => {
         let tr = document.createElement('tr');
         tr.innerHTML = `
-            <td><b>${item.empCode}</b></td>
-            <td style="color: #4ade80;">${item.checkIn}</td>
-            <td style="color: #f87171;">${item.checkOut}</td>
-            <td>${item.shift}</td>
-            <td>${item.status}</td>
-            <td>${item.ot}</td>
+            <td><b>${escapeHtml(item.empCode)}</b></td>
+            <td style="color: #4ade80;">${escapeHtml(item.checkIn)}</td>
+            <td style="color: #f87171;">${escapeHtml(item.checkOut)}</td>
+            <td>${escapeHtml(item.shift)}</td>
+            <td>${escapeHtml(item.status)}</td>
+            <td>${escapeHtml(item.ot)}</td>
         `;
         tbody.appendChild(tr);
     });
