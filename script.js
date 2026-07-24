@@ -81,8 +81,16 @@ function escapeHtml(str) {
 }
 
 // 🛠️ ฟังก์ชันช่วยแปลงวันที่จาก ISO String ให้เป็นรูปแบบวันที่/เวลาไทย
+// [แก้บัค] เดิมค่า checkIn/checkOut ที่ส่งขึ้น cloud เป็น string ปี พ.ศ. อยู่แล้ว (เช่น "24/7/2569 17:17:57")
+// พอ cloud คืนค่าเดิมกลับมา (เก็บเป็น text เฉยๆ ไม่ได้แปลงอะไร) ฟังก์ชันนี้จะเอาไปสร้าง new Date() ซ้ำ
+// ซึ่ง JS ตีความเลข 2569 เป็นปี ค.ศ. ตรงๆ (ไม่รู้จักปี พ.ศ.) แล้ว toLocaleDateString('th-TH') ก็บวก 543
+// ซ้ำเข้าไปอีกรอบ กลายเป็นปี 3112 ทำให้ค่า checkIn ที่ merge เทียบกับของ local ไม่ตรงกัน (เพราะปีเพี้ยน)
+// เห็นเป็นแถวซ้ำที่ปีไม่ตรงกันหลังรีเฟรช ตอนนี้ถ้าค่าที่ได้มาอยู่ในรูปแบบไทยของแอปเราอยู่แล้ว (D/M/พ.ศ. H:MM:SS)
+// ให้ใช้ค่าเดิมตรงๆ เลย ไม่ต้องแปลงซ้ำ
+const THAI_FORMATTED_DATE_RE = /^\d{1,2}\/\d{1,2}\/\d{4}\s\d{1,2}:\d{2}:\d{2}$/;
 function formatCloudDate(dateStr) {
     if (!dateStr || dateStr === '-') return '-';
+    if (THAI_FORMATTED_DATE_RE.test(dateStr)) return dateStr;
     let d = new Date(dateStr);
     if (!isNaN(d.getTime())) {
         let datePart = d.toLocaleDateString('th-TH');
