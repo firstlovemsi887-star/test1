@@ -225,8 +225,8 @@ function handleScan(event) {
 //   กะเช้า: เข้างาน 08:00 ตรง ไม่มีเกรซ (สายทันทีถ้าเกิน 08:00) เลิกงานปกติ 17:30
 //   กะดึก: เข้างาน 20:00 ตรง ไม่มีเกรซ เลิกงานปกติ 05:30 (วันถัดไป)
 //   ทั้งสองกะ: คนไม่ทำ OT จะไม่สแกนขาออกเลย — สแกนครั้งเดียวตอนเข้างานถือว่าจบวันนั้น (checkOut '-' = ไม่ทำ OT)
-//   คนทำ OT สแกนซ้ำตอนออก "ไม่ว่าจะสแกนเวลาไหนก็ตาม" ก็นับเป็น OT ทันที — ไม่มีช่วงเวลากำกับ
-//   ตัวชี้วัดเดียวว่าใครทำ OT คือ "มีการสแกนขาออกหรือไม่" เท่านั้น
+//   คนทำ OT สแกนซ้ำตอนออก ไม่มีเพดานเวลาบน (สแกนดึกแค่ไหนก็นับ OT ได้) แต่ต้องอยู่ต่ออย่างน้อย 30 นาที
+//   หลังเลิกงานปกติถึงจะนับ OT (กะเช้า >= 18:00, กะดึก >= 06:00) กันคนแตะบัตรออกทันทีตอนเลิกงานเพื่อเคลม OT ฟรี
 function processAttendance(empCode) {
     const now = new Date();
     const currentTime = now.getTime();
@@ -257,20 +257,30 @@ function processAttendance(empCode) {
 
     if (isOtConfirmScan) {
         // --- สแกนครั้งที่ 2: ยืนยัน OT ของกะที่เข้างานไว้ ---
-        // 🛠️ สแกนขาออกไม่ว่าจะเวลาไหนก็นับ OT ทันที ไม่มีช่วงเวลากำกับ (ตัวชี้วัดเดียวคือ "มีสแกนขาออกหรือไม่")
+        // 🛠️ กันคนแตะบัตรออกทันทีตอนเลิกงานเพื่อเคลม OT ฟรี: ต้องอยู่ต่ออย่างน้อย 30 นาทีหลังเลิกงานปกติ
+        // (กะเช้า >= 18:00, กะดึก >= 06:00) ถึงจะนับ OT ไม่มีเพดานเวลาบน สแกนดึกแค่ไหนก็ยังนับ OT ได้
         const record = openRecord;
         record.checkOut = fullDateTimeStr;
-        record.ot = 'ทำ';
+
+        let otStr = 'ไม่ทำ';
+        if (record.shift === 'กะเช้า' && currentMinutes >= (18 * 60)) {
+            otStr = 'ทำ';
+        } else if (record.shift === 'กะดึก' && now.getHours() < 12 && currentMinutes >= (6 * 60)) {
+            otStr = 'ทำ';
+        }
+        record.ot = otStr;
 
         playBeep('success');
         if (messageBox) {
-            messageBox.innerText = `🔴 [ยืนยันทำ OT] รหัส: ${empCode} เวลาออก: ${timeStr}`;
+            messageBox.innerText = otStr === 'ทำ'
+                ? `🔴 [ยืนยันทำ OT] รหัส: ${empCode} เวลาออก: ${timeStr}`
+                : `🔴 [สแกนขาออก - อยู่ต่อไม่ถึง 30 นาที จึงไม่นับ OT] รหัส: ${empCode} เวลาออก: ${timeStr}`;
             messageBox.style.color = '#ea580c';
         }
-        scanChannel.postMessage({ type: 'CHECK_OUT', empCode, status: record.status, ot: 'ทำ', shift: record.shift, time: timeStr });
+        scanChannel.postMessage({ type: 'CHECK_OUT', empCode, status: record.status, ot: otStr, shift: record.shift, time: timeStr });
         sendToCloud({
             sheet: 'attendance', action: 'update_checkout', empCode: empCode,
-            date: record.date, checkOut: fullDateTimeStr, ot: 'ทำ'
+            date: record.date, checkOut: fullDateTimeStr, ot: otStr
         });
     } else {
         // --- สแกนเข้างานของวันนี้ ---
