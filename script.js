@@ -135,6 +135,16 @@ function convertThaiToEng(str) {
     return str.split('').map(ch => numMap[ch] || charMap[ch] || ch).join('');
 }
 
+// 🛠️ [แก้บัค] เดิมใช้ Date.now() เป็น id เฉยๆ ซึ่งมีความละเอียดแค่ระดับมิลลิวินาที ถ้าสแกนพร้อมกันจากคนละแท็บ/หน้าต่าง
+// (เช่น 2 สถานีสแกนบนคอมเดียวกัน) มีโอกาสได้ id ชนกันได้จริง ทำให้ตรรกะรวมข้อมูล (merge by id) เข้าใจผิดว่าเป็นแถวเดียวกัน
+// แล้วทิ้งข้อมูลของอีกคนไปเงียบๆ จึงต้องสร้าง id ที่ไม่ชนกันแน่ๆ แทน
+function generateUniqueId() {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+        return crypto.randomUUID();
+    }
+    return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
 // 🛠️ ค้นหารหัสพนักงานความยาว 6 ตัวอักษร/ตัวเลขที่แน่นอนตามเงื่อนไข
 function extractEmpCode(rawStr) {
     let converted = convertThaiToEng(rawStr);
@@ -198,7 +208,7 @@ function handleScan(event) {
 //   ทั้งสองกะ: คนไม่ทำ OT จะไม่สแกนขาออกเลย — สแกนครั้งเดียวตอนเข้างานถือว่าจบวันนั้น (checkOut '-' = ไม่ทำ OT)
 //   คนทำ OT สแกนซ้ำตอนออก ไม่มีเพดานเวลาบน (สแกนดึกแค่ไหนก็นับ OT ได้) แต่ต้องอยู่ต่ออย่างน้อย 30 นาที
 //   หลังเลิกงานปกติถึงจะนับ OT (กะเช้า >= 18:00, กะดึก >= 06:00) กันคนแตะบัตรออกทันทีตอนเลิกงานเพื่อเคลม OT ฟรี
-function processAttendance(empCode) {
+async function processAttendance(empCode) {
     const now = new Date();
     const currentTime = now.getTime();
     const messageBox = document.getElementById('message');
@@ -261,7 +271,7 @@ function processAttendance(empCode) {
         // 🛠️ [แก้บัค] เดิม postMessage ก่อน saveAndRenderApp() (ซึ่งเป็นจุดที่เขียนลง localStorage จริง) เพราะแท็บ/หน้าต่างอื่น
         // อาจรันอยู่คนละโปรเซส พอได้รับ broadcast แล้วรีบไปอ่าน localStorage ทันที อาจจะยังอ่านค่าเก่าอยู่ (แข่งกับการเขียนที่ยังไม่เสร็จ)
         // ทำให้จอแสดงผลบางทีไม่อัปเดตข้อมูลล่าสุดให้ ต้องเซฟให้เสร็จก่อนแล้วค่อย broadcast เสมอ
-        saveAndRenderApp();
+        await saveAndRenderApp();
         scanChannel.postMessage({ type: 'CHECK_OUT', empCode, dept: outDept, status: record.status, ot: otStr, shift: record.shift, time: timeStr });
     } else {
         // --- สแกนเข้างานของวันนี้ ---
@@ -290,7 +300,7 @@ function processAttendance(empCode) {
 
         const dept = getEmployeeDept(empCode);
         const newRecord = {
-            id: Date.now(),
+            id: generateUniqueId(),
             empCode: empCode,
             date: todayStr,
             checkIn: fullDateTimeStr,
@@ -307,7 +317,7 @@ function processAttendance(empCode) {
             messageBox.innerText = `🟢 [เข้างาน - ${currentShift}] รหัส: ${empCode}${dept ? ` (${dept})` : ''} (${statusStr}) — ถ้าทำ OT ให้สแกนซ้ำตอนออกในช่วงเวลา OT`;
             messageBox.style.color = statusStr.includes("สาย") ? '#d32f2f' : '#2e7d32';
         }
-        saveAndRenderApp();
+        await saveAndRenderApp();
         scanChannel.postMessage({ type: 'CHECK_IN', empCode, dept, status: statusStr, shift: currentShift, time: timeStr });
     }
 }
@@ -346,8 +356,8 @@ function renderTable() {
             <td style="padding: 12px;">${statusBadge}</td>
             <td style="padding: 12px;">${otBadge}</td>
             <td style="padding: 12px;">
-                <button onclick="openEditModal(${item.id})" class="btn-edit">✏️ แก้ไข</button>
-                <button onclick="deleteRecord(${item.id})" class="btn-danger">ลบ</button>
+                <button onclick="openEditModal('${item.id}')" class="btn-edit">✏️ แก้ไข</button>
+                <button onclick="deleteRecord('${item.id}')" class="btn-danger">ลบ</button>
             </td>
         `;
         listTable.appendChild(tr);
@@ -424,7 +434,7 @@ function closeEditModal() {
 }
 
 function saveEdit() {
-    const id = Number(document.getElementById('editId').value);
+    const id = document.getElementById('editId').value;
     const record = attendanceData.find(i => i.id === id);
     if (record) {
         record.empCode = document.getElementById('editEmpCode').value.trim();
@@ -433,21 +443,68 @@ function saveEdit() {
         record.shift = document.getElementById('editShift').value;
         record.status = document.getElementById('editStatus').value.trim();
         record.ot = document.getElementById('editOt').value;
-        saveAndRenderApp();
+        saveAndRenderApp(true);
         closeEditModal();
         scanChannel.postMessage({ type: 'REFRESH_DATA' });
     }
 }
 
-function saveAndRenderApp() {
+// 🛠️ [แก้บัค] ถ้าเปิดหน้าสแกนหลายแท็บ/หน้าต่างพร้อมกันแล้วยิงติดๆ กัน แต่ละแท็บมี attendanceData ในหน่วยความจำของตัวเอง
+// ซึ่งอาจไม่ทันข้อมูลที่อีกแท็บเพิ่งเขียนไป ต้องอ่านล่าสุดจาก localStorage มา "รวม" (ไม่ใช่แทนที่ทั้งก้อน) เข้ากับของที่มีอยู่ในมือ
+// เสมอ ไม่ว่าจะก่อนเขียนทับ หรือตอนได้รับ broadcast จากแท็บอื่น เพราะถ้าสั่ง attendanceData = ข้อมูลจาก storage ตรงๆ
+// จะทับข้อมูลที่แท็บนี้เพิ่งสแกนไว้ในหน่วยความจำแต่ยังเขียนลง storage ไม่เสร็จ (โดยเฉพาะตอนคิวการเขียนที่ล็อคอยู่ทำให้รอนานขึ้น)
+function mergeLatestAttendanceIntoMemory() {
+    try {
+        const latestRaw = localStorage.getItem('mfg5_attendance');
+        if (latestRaw) {
+            const latestData = JSON.parse(latestRaw);
+            const knownIds = new Set(attendanceData.map(r => r.id));
+            latestData.forEach(r => {
+                if (!knownIds.has(r.id)) {
+                    attendanceData.push(r);
+                    knownIds.add(r.id);
+                } else if (r.checkOut !== '-') {
+                    const mine = attendanceData.find(x => x.id === r.id);
+                    if (mine && mine.checkOut === '-') {
+                        mine.checkOut = r.checkOut;
+                        mine.ot = r.ot;
+                    }
+                }
+            });
+            attendanceData.sort((a, b) => (b.rawCheckInTime || 0) - (a.rawCheckInTime || 0));
+        }
+    } catch (e) { /* ข้อมูลเก่าอ่านไม่ได้ ข้ามการรวม */ }
+}
+
+function mergeAndWriteAttendance() {
+    mergeLatestAttendanceIntoMemory();
     localStorage.setItem('mfg5_attendance', JSON.stringify(attendanceData));
-    renderTable();
-    showSummary();
+}
+
+// 🛠️ skipMerge=true ใช้กับการ "ลบ/ล้าง/แก้ไข" ที่ต้องการให้ข้อมูลในมือ (attendanceData) เป็นตัวจริงเสมอ (authoritative)
+// ถ้าไปรวมของจาก storage เข้ามาด้วย จะทำให้แถวที่เพิ่งลบ/ล้างไปถูกดึงกลับมาใหม่จาก storage เก่าที่ยังไม่ทันอัปเดต
+// ส่วนการสแกน/นำเข้าไฟล์ (เพิ่มข้อมูลอย่างเดียว ไม่มีการลบ) ให้ใช้ค่า default (merge) เพื่อกันข้อมูลหายตอนสแกนพร้อมกันหลายแท็บ
+function saveAndRenderApp(skipMerge) {
+    // 🛠️ แค่อ่าน-รวม-เขียนใหม่เฉยๆ ยังมีช่องโหว่แข่งกันได้ถ้าสองแท็บอ่านพร้อมกันก่อนต่างฝ่ายต่างเขียนทับ
+    // ต้องใช้ Web Locks API ล็อคข้ามแท็บจริงๆ (เหมือนใช้คิวเดียวกันทุกแท็บ) ถึงจะการันตีว่าไม่มีข้อมูลหายแน่นอน
+    const doWrite = () => {
+        if (skipMerge) {
+            localStorage.setItem('mfg5_attendance', JSON.stringify(attendanceData));
+        } else {
+            mergeAndWriteAttendance();
+        }
+        renderTable();
+        showSummary();
+    };
+    if (typeof navigator !== 'undefined' && navigator.locks && navigator.locks.request) {
+        return navigator.locks.request('mfg5_attendance_lock', doWrite);
+    }
+    return Promise.resolve(doWrite());
 }
 
 function performDeleteRecord(id) {
     attendanceData = attendanceData.filter(i => i.id !== id);
-    saveAndRenderApp();
+    saveAndRenderApp(true);
     scanChannel.postMessage({ type: 'REFRESH_DATA' });
 }
 
@@ -456,7 +513,7 @@ function deleteRecord(id) {
 }
 
 function deleteRecordFromModal() {
-    const id = Number(document.getElementById('editId').value);
+    const id = document.getElementById('editId').value;
     showConfirm('ต้องการลบรายการนี้ใช่หรือไม่?', () => {
         performDeleteRecord(id);
         closeEditModal();
@@ -466,7 +523,7 @@ function deleteRecordFromModal() {
 function clearData() {
     showConfirm('⚠️ ต้องการล้างข้อมูลการลงเวลาทั้งหมดใช่หรือไม่?', () => {
         attendanceData = [];
-        saveAndRenderApp();
+        saveAndRenderApp(true);
 
         // 🛠️ ส่งสัญญาณบอกหน้าอื่นๆ ให้ล้างข้อมูลตาม
         scanChannel.postMessage({ type: 'REFRESH_DATA' });
@@ -574,7 +631,7 @@ async function importExcel(event) {
                     if (rawMs !== null) record.rawCheckInTime = rawMs;
                 }
 
-                record.id = Date.now() + recordsToAdd.length + Math.floor(Math.random() * 1000);
+                record.id = generateUniqueId();
                 recordsToAdd.push(record);
             });
 
@@ -669,7 +726,7 @@ function handleRestroomScan(event) {
 
         if(!activeRecord) {
             let newRec = {
-                id: Date.now(),
+                id: generateUniqueId(),
                 empCode: empCode,
                 reason: selectedRestroomReason,
                 startTime: timeStr,
@@ -725,7 +782,7 @@ function renderRestroom() {
             <td>${escapeHtml(item.returnTime)}</td>
             <td>${escapeHtml(item.duration)}</td>
             <td><span class="timer-badge ${isOver ? 'timer-over' : 'timer-normal'}">${escapeHtml(item.status)}</span></td>
-            <td><button onclick="deleteRestroom(${item.id})" class="btn-danger">ลบ</button></td>
+            <td><button onclick="deleteRestroom('${item.id}')" class="btn-danger">ลบ</button></td>
         `;
         list.appendChild(tr);
     });
@@ -1005,7 +1062,7 @@ scanChannel.onmessage = (event) => {
         return;
     }
 
-    attendanceData = JSON.parse(localStorage.getItem('mfg5_attendance')) || [];
+    mergeLatestAttendanceIntoMemory();
     renderLatestScanCard(attendanceData.find(r => r.empCode === data.empCode));
     renderDisplayTable();
 };
@@ -1042,7 +1099,7 @@ function renderDisplayTable() {
 // ซึ่งจะซิงค์กันแบบเรียลไทม์ผ่าน BroadcastChannel (ระหว่างที่เปิดอยู่) และ storage event (ข้ามแท็บที่โหลดใหม่)
 window.addEventListener('storage', (e) => {
     if (e.key === 'mfg5_attendance') {
-        attendanceData = JSON.parse(e.newValue) || [];
+        mergeLatestAttendanceIntoMemory();
         loadDashboard();
         renderTable();
         showSummary();
