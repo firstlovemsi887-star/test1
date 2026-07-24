@@ -255,6 +255,10 @@ function processAttendance(empCode) {
                 : `🔴 [สแกนขาออก - อยู่ต่อไม่ถึง 30 นาที จึงไม่นับ OT] รหัส: ${empCode}${outDept ? ` (${outDept})` : ''} เวลาออก: ${timeStr}`;
             messageBox.style.color = '#ea580c';
         }
+        // 🛠️ [แก้บัค] เดิม postMessage ก่อน saveAndRenderApp() (ซึ่งเป็นจุดที่เขียนลง localStorage จริง) เพราะแท็บ/หน้าต่างอื่น
+        // อาจรันอยู่คนละโปรเซส พอได้รับ broadcast แล้วรีบไปอ่าน localStorage ทันที อาจจะยังอ่านค่าเก่าอยู่ (แข่งกับการเขียนที่ยังไม่เสร็จ)
+        // ทำให้จอแสดงผลบางทีไม่อัปเดตข้อมูลล่าสุดให้ ต้องเซฟให้เสร็จก่อนแล้วค่อย broadcast เสมอ
+        saveAndRenderApp();
         scanChannel.postMessage({ type: 'CHECK_OUT', empCode, dept: outDept, status: record.status, ot: otStr, shift: record.shift, time: timeStr });
     } else {
         // --- สแกนเข้างานของวันนี้ ---
@@ -300,10 +304,9 @@ function processAttendance(empCode) {
             messageBox.innerText = `🟢 [เข้างาน - ${currentShift}] รหัส: ${empCode}${dept ? ` (${dept})` : ''} (${statusStr}) — ถ้าทำ OT ให้สแกนซ้ำตอนออกในช่วงเวลา OT`;
             messageBox.style.color = statusStr.includes("สาย") ? '#d32f2f' : '#2e7d32';
         }
+        saveAndRenderApp();
         scanChannel.postMessage({ type: 'CHECK_IN', empCode, dept, status: statusStr, shift: currentShift, time: timeStr });
     }
-
-    saveAndRenderApp();
 }
 
 function renderTable() {
@@ -890,6 +893,31 @@ function importEmployees(event) {
 }
 
 // Display Real-time Screen Logic
+// 🛠️ [แก้บัค] เดิมการ์ด "ผลสแกนล่าสุด" อัปเดตเฉพาะตอนมี event ยิงเข้ามาสดๆ (ผ่าน BroadcastChannel) เท่านั้น
+// พอเปิดหน้าจอแสดงผลใหม่ หรือรีเฟรชหน้า (เช่น จอทีวีรีบูต) การ์ดจะโชว์ "รอการสแกน..." ค้างไว้ตลอด
+// ทั้งที่มีคนสแกนไปแล้วก่อนหน้านี้ และไม่เคยโชว์เวลาสแกนจริงเลยถ้าไม่ทันเห็น event สดตอนนั้น
+// ตอนนี้ดึงข้อมูลจากแถวล่าสุดใน attendanceData มาโชว์ได้ทั้งตอนโหลดหน้าและตอนมี event สด ใช้ตรรกะเดียวกัน
+function renderLatestScanCard(record) {
+    let card = document.getElementById('latestCard');
+    let title = document.getElementById('scanActionTitle');
+    let codeEl = document.getElementById('latestEmpCode');
+    let details = document.getElementById('latestDetails');
+    if (!card || !title || !codeEl || !details || !record) return;
+
+    const dept = getEmployeeDept(record.empCode);
+    codeEl.innerText = dept ? `${record.empCode} (${dept})` : record.empCode;
+
+    if (record.checkOut && record.checkOut !== '-') {
+        card.className = "latest-card active-checkout";
+        title.innerText = `🔴 ออกงานสำเร็จ`;
+        details.innerText = `OT: ${record.ot} | เวลา: ${record.checkOut}`;
+    } else {
+        card.className = "latest-card active-checkin";
+        title.innerText = `🟢 เข้างานสำเร็จ (${record.shift})`;
+        details.innerText = `สถานะ: ${record.status} | เวลา: ${record.checkIn}`;
+    }
+}
+
 scanChannel.onmessage = (event) => {
     let data = event.data;
 
@@ -907,24 +935,8 @@ scanChannel.onmessage = (event) => {
         return;
     }
 
-    let card = document.getElementById('latestCard');
-    let title = document.getElementById('scanActionTitle');
-    let codeEl = document.getElementById('latestEmpCode');
-    let details = document.getElementById('latestDetails');
-
-    if(card && title && codeEl) {
-        codeEl.innerText = data.dept ? `${data.empCode} (${data.dept})` : data.empCode;
-        if(data.type === 'CHECK_IN') {
-            card.className = "latest-card active-checkin";
-            title.innerText = `🟢 เข้างานสำเร็จ (${data.shift})`;
-            details.innerText = `สถานะ: ${data.status} | เวลา: ${data.time}`;
-        } else {
-            card.className = "latest-card active-checkout";
-            title.innerText = `🔴 ออกงานสำเร็จ`;
-            details.innerText = `OT: ${data.ot} | เวลา: ${data.time}`;
-        }
-    }
     attendanceData = JSON.parse(localStorage.getItem('mfg5_attendance')) || [];
+    renderLatestScanCard(attendanceData.find(r => r.empCode === data.empCode));
     renderDisplayTable();
 };
 
@@ -988,6 +1000,7 @@ document.addEventListener("DOMContentLoaded", () => {
     showSummary();
     renderRestroom();
     renderDisplayTable();
+    renderLatestScanCard(attendanceData[0]);
     initMascot();
 });
 
